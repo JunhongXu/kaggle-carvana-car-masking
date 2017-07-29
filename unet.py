@@ -43,7 +43,6 @@ class UNetUpBlock(nn.Module):
         x = self.upsampling(x)
         # feat = self.crop(feat)
         x = torch.cat((x, feat), 1)
-        print(x.size())
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)

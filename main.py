@@ -19,6 +19,7 @@ if __name__ == '__main__':
     criterion = nn.NLLLoss2d()
     if torch.cuda.is_available():
         net.cuda()
+    net = nn.DataParallel(net)
 
     # train
     for e in range(EPOCH):
