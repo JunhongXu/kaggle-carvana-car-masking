@@ -43,7 +43,6 @@ class UNetUpBlock(nn.Module):
         x = self.upsampling(x)
         # feat = self.crop(feat)
         x = torch.cat((x, feat), 1)
-        print(x.size())
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
@@ -78,18 +77,18 @@ class UNet(nn.Module):
 
     def forward(self, x):
         feat1 = self.downblock1(x)       # 32*128*192
-        feat1_pool = self.pool1(feat1)   # 32*128*192
+        out = self.pool1(feat1)   # 32*128*192
 
-        feat2 = self.downblock2(feat1_pool)   # 64*64*96
-        feat2_pool = self.pool2(feat2)   # 64*64*96
+        feat2 = self.downblock2(out)   # 64*64*96
+        out = self.pool2(feat2)   # 64*64*96
 
-        feat3 = self.downblock3(feat2_pool)   # 128*32*48
-        feat3_pool = self.pool3(feat3)   # 128*32*32
+        feat3 = self.downblock3(out)   # 128*32*48
+        out = self.pool3(feat3)   # 128*32*32
 
-        feat4 = self.downblock4(feat3_pool)   # 256*16*24
-        feat4_pool = self.pool4(feat4)   # 256*16*24
+        feat4 = self.downblock4(out)   # 256*16*24
+        out = self.pool4(feat4)   # 256*16*24
 
-        out = self.downblock5(feat4_pool)    # 512*16*24
+        out = self.downblock5(out)    # 512*16*24
         out = self.downblock6(out)      # 256*16*24
 
         up1 = self.upblock1(out, feat4) # 256*32*48
