@@ -43,6 +43,7 @@ class UNetUpBlock(nn.Module):
         x = self.upsampling(x)
         # feat = self.crop(feat)
         x = torch.cat((x, feat), 1)
+        print(x.size())
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
@@ -68,42 +69,45 @@ class UNet(nn.Module):
         self.downblock5 = UNetBlock(256, 512)   # 512*16*16
         self.downblock6 = nn.Conv2d(512, 256, 1)    #256*16*16
 
-        self.upblock1 = UNetUpBlock(384, 128, 32)   # 256*32*32
-        self.upblock2 = UNetUpBlock(192, 64, 64)   # 128*64*64
-        self.upblock3 = UNetUpBlock(96, 32, 128)    # 64*128*128
-        # self.upblock4 = UNetUpBlock(32, 32, 256)    # 32*256*256
+        self.upblock1 = UNetUpBlock(512, 256, 32)   # 256*32*32
+        self.upblock2 = UNetUpBlock(384, 128, 64)   # 128*64*64
+        self.upblock3 = UNetUpBlock(192, 64, 128)    # 64*128*128
+        self.upblock4 = UNetUpBlock(96, 32, 256)    # 32*256*256
 
         self.final_conv = nn.Conv2d(32, 2, 1)
 
     def forward(self, x):
-        feat1 = self.downblock1(x)
-        feat1 = self.pool1(feat1)   # 32*128*128
+        feat1 = self.downblock1(x)       # 32*128*192
+        feat1_pool = self.pool1(feat1)   # 32*128*192
 
-        feat2 = self.downblock2(feat1)
-        feat2 = self.pool2(feat2)   # 64*64*64
+        feat2 = self.downblock2(feat1_pool)   # 64*64*96
+        feat2_pool = self.pool2(feat2)   # 64*64*96
 
-        feat3 = self.downblock3(feat2)
-        feat3 = self.pool3(feat3)   # 128*32*32
+        feat3 = self.downblock3(feat2_pool)   # 128*32*48
+        feat3_pool = self.pool3(feat3)   # 128*32*32
 
-        feat4 = self.downblock4(feat3)
-        feat4 = self.pool4(feat4)   # 256*16*16
+        feat4 = self.downblock4(feat3_pool)   # 256*16*24
+        feat4_pool = self.pool4(feat4)   # 256*16*24
 
-        out = self.downblock5(feat4)    # 512*16*16
-        out = self.downblock6(out)      # 256*16*16
+        out = self.downblock5(feat4_pool)    # 512*16*24
+        out = self.downblock6(out)      # 256*16*24
 
-        up1 = self.upblock1(out, feat3) # 256*32*32
-        up2 = self.upblock2(up1, feat2)
-        up3 = self.upblock3(up2, feat1)
-        # up4 = self.upblock4(up3, feat1)
+        up1 = self.upblock1(out, feat4) # 256*32*48
+        up2 = self.upblock2(up1, feat3) # 64*96
+        up3 = self.upblock3(up2, feat2) # 128*192
+        up4 = self.upblock4(up3, feat1) # 256*384
 
-        logits = self.final_conv(up3)
-        probs = F.softmax(logits)
+        logits = self.final_conv(up4)
+        probs = F.log_softmax(logits)
 
         return logits, probs
 
 
 if __name__ == '__main__':
-    x = Variable(torch.randn(1, 3, 256, 256))
+    loss = nn.NLLLoss2d()
+    _x = Variable(torch.randn(1, 3, 256, int(256*1.5)))
+    target = Variable(torch.LongTensor(1, 256, int(256*1.5)).random_(0, 1))
     net = UNet()
-    print(net(x)[1])
+    logits, probs = net(_x)
+    print(loss(probs, target))
 
