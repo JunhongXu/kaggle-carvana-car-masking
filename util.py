@@ -9,16 +9,18 @@ import numpy as np
 def pred(dataloader, net):
     net.eval()
     total_size, H, W, C = dataloader.dataset.imgs.shape
-    logits = np.empty((total_size, 2, H, W))
+    pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
     prev = 0
     for idx, img, _ in enumerate(dataloader):
         batch_size = img.size(0)
         img = Variable(img.cuda(), volatile=True)
         _logits, _log_logits = net(img)
-        logits[prev: prev+batch_size] = _logits.data.cpu().numpy()
+        l = _logits.data.cpu().numpy()
+        l = np.argmax(l, axis=1)
+        pred_labels[prev: prev+batch_size] = l
         prev = prev + batch_size
         print('Batch index', idx)
-    return logits
+    return pred_labels
 
 
 def evaluate(dataloader, net, criterion):

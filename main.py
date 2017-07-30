@@ -61,9 +61,8 @@ def train(net):
 
         if e % 1 == 0:
             # validate
-            logits = pred(valid_loader, net)
+            pred_labels = pred(valid_loader, net)
             valid_loss = evaluate(valid_loader, net, criterion)
-            pred_labels = np.argmax(logits, axis=1)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
             print(valid_loss, dice)
@@ -82,12 +81,11 @@ def test(net):
     net = nn.DataParallel(net)
     net.load_state_dict(torch.load('models/unet.pth'))
 
-    logtis = pred(test_loader, net)
-    pred_mask = np.argmax(logtis, axis=1).astype(np.uint8)
+    pred_labels = pred(test_loader, net)
     names = glob.glob(CARANA_DIR+'/test/*.jpg')
     names = [name.split('/')[-1][:-4] for name in names]
     # save mask
-    save_mask(mask_imgs=pred_mask, model_name='unet', names=names)
+    save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
 
 
 if __name__ == '__main__':
