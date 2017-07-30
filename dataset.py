@@ -11,32 +11,38 @@ CARANA_DIR = '/media/jxu7/BACK-UP/Data/carvana'
 mean = [0.68404490794406181, 0.69086280353012897, 0.69792341323303619]
 std = [0.24479961336692371, 0.24790616166162652, 0.24398260796692428]
 
+
 class CarvanaDataSet(Dataset):
-    def __init__(self, H=256, W=int(256*1.5), valid=False, transform=None):
+    def __init__(self, H=256, W=int(256*1.5), valid=False, transform=None, test=False):
         super(CarvanaDataSet, self).__init__()
         self.transform = transform
-        all_imgs = sorted(glob.glob(CARANA_DIR+'/train/train/*.jpg'))
-        all_label_names = sorted(glob.glob(CARANA_DIR + '/train/train_masks/*gif'))
-        # read images
-        if valid:
-            self.img_names = all_imgs[-100:]
-            self.label_names = all_label_names[-100:]
-            self.imgs = np.empty((len(self.img_names), H, W, 3))
+        self.test = test
+        if not test:
+            all_imgs = sorted(glob.glob(CARANA_DIR+'/train/train/*.jpg'))
+            all_label_names = sorted(glob.glob(CARANA_DIR + '/train/train_masks/*gif'))
+            # read images
+            if valid:
+                self.img_names = all_imgs[-100:]
+                self.label_names = all_label_names[-100:]
+                self.imgs = np.empty((len(self.img_names), H, W, 3))
+            else:
+                self.img_names = all_imgs[:-100]
+                self.label_names = all_label_names[:-100]
+                self.imgs = np.empty((len(self.img_names), H, W, 3))
+
+            self.labels = np.empty((len(self.label_names), H, W))
+            for idx, label_name in enumerate(self.label_names):
+                l = Image.open(label_name).resize((W, H))
+                l = np.array(l)
+                self.labels[idx] = l
         else:
-            self.img_names = all_imgs[:-100]
-            self.label_names = all_label_names[:-100]
-            self.imgs = np.empty((len(self.img_names), H, W, 3))
+            self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')
+        print(self.img_names[:20])
 
         for idx, img_name in enumerate(self.img_names):
             self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
 
         self.imgs = self.imgs/255.
-
-        self.labels = np.empty((len(self.label_names), H, W))
-        for idx, label_name in enumerate(self.label_names):
-            l = Image.open(label_name).resize((W, H))
-            l = np.array(l)
-            self.labels[idx] = l
 
     def mean_std(self):
         mean = []
@@ -50,7 +56,10 @@ class CarvanaDataSet(Dataset):
         img = self.imgs[index]
         if self.transform is not None:
             img = self.transform(img)
-        return img, self.labels[index]
+        if self.test:
+            return img, self.labels[index]
+        else:
+            return img, 0
 
     def __len__(self):
         return len(self.imgs)
@@ -77,6 +86,12 @@ def get_valid_dataloader(batch_size):
 
 def get_train_dataloader(batch_size=64):
     return DataLoader(batch_size=batch_size, dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
+                                                                Normalize(mean=mean, std=std)])))
+
+
+def get_test_dataloader(batch_size=64):
+    return DataLoader(batch_size=batch_size, test=True,
+                      dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
                                                                 Normalize(mean=mean, std=std)])))
 
 

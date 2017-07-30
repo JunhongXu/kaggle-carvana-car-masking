@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.optim import Adam, SGD
-
-from dataset import get_valid_dataloader, get_train_dataloader
+import glob
+from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
 from unet import UNet
-from util import pred, evaluate, dice_coeff
+from util import pred, evaluate, dice_coeff, rle_encode, save_mask
 import numpy as np
 
 
@@ -29,9 +29,7 @@ def lr_scheduler(optimizer, epoch):
         param['lr'] = lr
 
 
-if __name__ == '__main__':
-    net = UNet()
-    train_loader, valid_loader = get_train_dataloader(20), get_valid_dataloader(64)
+def train(net):
     # valid_loader = get_valid_dataloader(20)
     optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
     # optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.95)
@@ -72,3 +70,30 @@ if __name__ == '__main__':
             if best_val_loss < dice:
                 torch.save(net.state_dict(), 'models/unet.pth')
                 best_val_loss = dice
+
+
+def test(net):
+    """
+    save the predicted mask image to .jpg file
+    save the predicted mask prediction to submission file using rle_encode
+    """
+    if torch.cuda.is_available():
+        net.cuda()
+    net = nn.DataParallel(net)
+    net.load_state_dict(torch.load('models/unet.pth'))
+
+    logtis, log_logits = pred(test_loader, net)
+    pred_mask = np.argmax(logtis, axis=1)
+
+    # save mask
+    save_mask(mask_imgs=pred_mask, model_name='unet', names=names)
+
+
+if __name__ == '__main__':
+    net = UNet()
+    # train_loader, valid_loader = get_train_dataloader(20), get_valid_dataloader(64)
+    # train(net)
+    names = glob.glob(CARANA_DIR+'/test/*.jpg')
+    print(names)
+    test_loader = get_test_dataloader(128)
+    test(net)
