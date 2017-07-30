@@ -42,9 +42,8 @@ class CarvanaDataSet(Dataset):
             self.imgs = np.zeros((len(self.img_names), H, W, 3), dtype=np.uint8)
         for idx, img_name in enumerate(self.img_names):
             self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
-
         # self.imgs.astype(np.float32)
-        self.imgs = self.imgs/255.
+        # self.imgs = self.imgs/255.
         print('Done Loading!')
 
     def mean_std(self):
@@ -59,10 +58,10 @@ class CarvanaDataSet(Dataset):
         img = self.imgs[index]
         if self.transform is not None:
             img = self.transform(img)
-        if self.test:
-            return img, self.labels[index]
+        if not self.test:
+            return img/255., self.labels[index]
         else:
-            return img, 0
+            return img/255., 0
 
     def __len__(self):
         return len(self.imgs)

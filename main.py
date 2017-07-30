@@ -61,7 +61,7 @@ def train(net):
 
         if e % 1 == 0:
             # validate
-            logits, log_logits = pred(valid_loader, net)
+            logits = pred(valid_loader, net)
             valid_loss = evaluate(valid_loader, net, criterion)
             pred_labels = np.argmax(logits, axis=1)
             # print(pred_labels)
@@ -82,8 +82,8 @@ def test(net):
     net = nn.DataParallel(net)
     net.load_state_dict(torch.load('models/unet.pth'))
 
-    logtis, log_logits = pred(test_loader, net)
-    pred_mask = np.argmax(logtis, axis=1)
+    logtis = pred(test_loader, net)
+    pred_mask = np.argmax(logtis, axis=1).astype(np.uint8)
     names = glob.glob(CARANA_DIR+'/test/*.jpg')
     names = [name.split('/')[-1][:-4] for name in names]
     # save mask
