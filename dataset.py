@@ -92,12 +92,13 @@ def get_valid_dataloader(batch_size):
 
 
 def get_train_dataloader(batch_size=64):
-    return DataLoader(batch_size=batch_size, dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
+    return DataLoader(batch_size=batch_size, shuffle=True,
+                      dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
                                                                 Normalize(mean=mean, std=std)])))
 
 
 def get_test_dataloader(batch_size=64):
-    return DataLoader(batch_size=batch_size,
+    return DataLoader(batch_size=batch_size, num_workers=2,
                       dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
                                                                 Normalize(mean=mean, std=std)]), test=True))
 
