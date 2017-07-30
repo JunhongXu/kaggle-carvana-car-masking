@@ -12,14 +12,14 @@ def pred(dataloader, net):
     logits = np.empty((total_size, 2, H, W))
     log_logtis = np.empty((total_size, 2, H, W))
     prev = 0
-    for img, _ in dataloader:
+    for idx, img, _ in enumerate(dataloader):
         batch_size = img.size(0)
         img = Variable(img.cuda(), volatile=True)
         _logits, _log_logits = net(img)
         logits[prev: prev+batch_size] = _logits.data.cpu().numpy()
         log_logtis[prev: prev+batch_size] = _log_logits.data.cpu().numpy()
         prev = prev + batch_size
-
+        print('Batch index', idx)
     return logits, log_logtis
 
 
@@ -57,10 +57,12 @@ def rle_encode(mask_image):
 
 def save_mask(mask_imgs, model_name, names):
     mask_imgs.astype(np.uint8)
-    # save_dir = os.path.join(CARANA_DIR, model_name)
+    save_dir = os.path.join(CARANA_DIR, model_name)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     for name, mask_img in zip(names, mask_imgs):
         # mask_img = cv2.cvtColor(mask_img, cv2.)
-        cv2.imwrite(os.path.join(model_name, '{}.png'.format(name)), mask_img)
+        cv2.imwrite(os.path.join(save_dir, '{}.png'.format(name)), mask_img)
 
 
 if __name__ == '__main__':

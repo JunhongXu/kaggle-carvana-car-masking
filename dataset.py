@@ -17,6 +17,7 @@ class CarvanaDataSet(Dataset):
         super(CarvanaDataSet, self).__init__()
         self.transform = transform
         self.test = test
+        print('[!]Loading!' + CARANA_DIR)
         if not test:
             all_imgs = sorted(glob.glob(CARANA_DIR+'/train/train/*.jpg'))
             all_label_names = sorted(glob.glob(CARANA_DIR + '/train/train_masks/*gif'))
@@ -38,10 +39,13 @@ class CarvanaDataSet(Dataset):
         else:
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')
 
+            self.imgs = np.zeros((len(self.img_names), H, W, 3), dtype=np.uint8)
         for idx, img_name in enumerate(self.img_names):
             self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
 
+        # self.imgs.astype(np.float32)
         self.imgs = self.imgs/255.
+        print('Done Loading!')
 
     def mean_std(self):
         mean = []
@@ -89,9 +93,9 @@ def get_train_dataloader(batch_size=64):
 
 
 def get_test_dataloader(batch_size=64):
-    return DataLoader(batch_size=batch_size, test=True,
+    return DataLoader(batch_size=batch_size,
                       dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
-                                                                Normalize(mean=mean, std=std)])))
+                                                                Normalize(mean=mean, std=std)]), test=True))
 
 
 if __name__ == '__main__':
