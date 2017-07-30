@@ -33,6 +33,8 @@ class CarvanaDataSet(Dataset):
                 self.imgs = np.empty((len(self.img_names), H, W, 3))
 
             self.labels = np.empty((len(self.label_names), H, W))
+            for idx, img_name in enumerate(self.img_names):
+                self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
             for idx, label_name in enumerate(self.label_names):
                 l = Image.open(label_name).resize((W, H))
                 l = np.array(l)
@@ -69,7 +71,7 @@ class CarvanaDataSet(Dataset):
             return img/255., 0
 
     def __len__(self):
-        return len(self.imgs)
+        return len(self.img_names)
 
 
 def toTensor(img):
@@ -98,7 +100,7 @@ def get_train_dataloader(batch_size=64):
 
 
 def get_test_dataloader(batch_size=64):
-    return DataLoader(batch_size=batch_size, num_workers=2,
+    return DataLoader(batch_size=batch_size, num_workers=4,
                       dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
                                                                 Normalize(mean=mean, std=std)]), test=True))
 

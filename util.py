@@ -8,15 +8,17 @@ import numpy as np
 
 def pred(dataloader, net):
     net.eval()
-    total_size, H, W, C = dataloader.dataset.imgs.shape
+    total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.H, dataloader.dataset.W
     pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
     prev = 0
-    for idx, img, _ in enumerate(dataloader):
+    for idx, (img, _) in enumerate(dataloader):
         batch_size = img.size(0)
+        # print(img.numpy())
         img = Variable(img.cuda(), volatile=True)
         _logits, _log_logits = net(img)
         l = _logits.data.cpu().numpy()
         l = np.argmax(l, axis=1)
+
         pred_labels[prev: prev+batch_size] = l
         prev = prev + batch_size
         print('Batch index', idx)
@@ -67,11 +69,11 @@ def save_mask(mask_imgs, model_name, names):
 
 if __name__ == '__main__':
     import glob
-    img = np.random.randint(0, 2, (2, 300, 300))
-    save_mask(img, 'unte', ['1', '2'])
+    from scipy.misc import imread
+    imgnames = glob.glob(CARANA_DIR+"/unet/*.png")
+    img = imread(imgnames[4], 'L')
+    # save_mask(img, 'unte', ['1', '2'])
 
-    for img in glob.glob('unte/*.png'):
-        a = imread(img, 'L')
-        print(a)
-        cv2.imshow('f', a)
-        cv2.waitKey()
+   #  for img in glob.glob('unte/*.png'):
+    cv2.imshow('f', img)
+    cv2.waitKey()

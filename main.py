@@ -90,8 +90,25 @@ def test(net):
 
 if __name__ == '__main__':
     net = UNet()
+    import cv2
+    from scipy.misc import imshow
     # train_loader, valid_loader = get_train_dataloader(20), get_valid_dataloader(64)
     # train(net)
+    valid_loader = get_valid_dataloader(64)
+    if torch.cuda.is_available():
+        net.cuda()
+    net = nn.DataParallel(net)
+    net.load_state_dict(torch.load('models/unet.pth'))
 
-    test_loader = get_test_dataloader(128)
-    test(net)
+    pred_labels = pred(valid_loader, net)
+
+    for l in pred_labels:
+        print(l.sum())
+        print(l)
+        imshow( l)
+    # names = glob.glob(CARANA_DIR+'/test/*.jpg')
+    # names = [name.split('/')[-1][:-4] for name in names]
+    # save mask
+    # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
+    # test_loader = get_test_dataloader(64)
+    # test(net)
