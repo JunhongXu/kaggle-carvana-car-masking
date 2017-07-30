@@ -37,7 +37,6 @@ class CarvanaDataSet(Dataset):
                 self.labels[idx] = l
         else:
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')
-        print(self.img_names[:20])
 
         for idx, img_name in enumerate(self.img_names):
             self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
