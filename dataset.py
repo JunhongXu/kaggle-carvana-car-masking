@@ -15,6 +15,7 @@ std = [0.24479961336692371, 0.24790616166162652, 0.24398260796692428]
 class CarvanaDataSet(Dataset):
     def __init__(self, H=256, W=int(256*1.5), valid=False, transform=None, test=False):
         super(CarvanaDataSet, self).__init__()
+        self.H, self.W = H, W
         self.transform = transform
         self.test = test
         print('[!]Loading!' + CARANA_DIR)
@@ -37,11 +38,12 @@ class CarvanaDataSet(Dataset):
                 l = np.array(l)
                 self.labels[idx] = l
         else:
+            # in test mode, read the test image on the fly
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')
-
-            self.imgs = np.zeros((len(self.img_names), H, W, 3), dtype=np.uint8)
-        for idx, img_name in enumerate(self.img_names):
-            self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
+        #
+        #     self.imgs = np.zeros((len(self.img_names), H, W, 3), dtype=np.uint8)
+        # for idx, img_name in enumerate(self.img_names):
+        #     self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
         # self.imgs.astype(np.float32)
         # self.imgs = self.imgs/255.
         print('Done Loading!')
@@ -55,12 +57,15 @@ class CarvanaDataSet(Dataset):
         return mean, std
 
     def __getitem__(self, index):
-        img = self.imgs[index]
-        if self.transform is not None:
-            img = self.transform(img)
         if not self.test:
+            img = self.imgs[index]
+            if self.transform is not None:
+                img = self.transform(img)
             return img/255., self.labels[index]
         else:
+            img = cv2.resize(cv2.imread(self.img_names[index]), (self.W, self.H))
+            if self.transform is not None:
+                img = self.transform(img)
             return img/255., 0
 
     def __len__(self):
