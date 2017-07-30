@@ -10,17 +10,17 @@ import numpy as np
 
 
 EPOCH = 50
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 5e-4
 L2_DECAY = 5e-4
 
 
 def lr_scheduler(optimizer, epoch):
-    if 0 < epoch <=10:
+    if 0 <= epoch <=5:
         lr = 0.1
-    elif 10 < epoch <= 25:
-        lr = 0.01
-    elif 25 < epoch <=35:
-        lr = 0.005
+    elif 5 < epoch <= 15:
+        lr = 0.05
+    elif 15 < epoch <=35:
+        lr = 0.001
     elif 35 < epoch <= 40:
         lr = 0.0005
     else:
@@ -32,16 +32,17 @@ def lr_scheduler(optimizer, epoch):
 def train(net):
     # valid_loader = get_valid_dataloader(20)
     optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
-    # optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.95)
+    # optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
     criterion = nn.NLLLoss2d()
     if torch.cuda.is_available():
         net.cuda()
     net = nn.DataParallel(net)
     print(net)
     # train
-    best_val_loss = np.inf
+    best_val_loss =0.0
     for e in range(EPOCH):
         # iterate over batches
+        # lr_scheduler(optimizer, e)
         net.train()
         for idx, (img, label) in enumerate(train_loader):
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
@@ -65,8 +66,9 @@ def train(net):
             valid_loss = evaluate(valid_loader, net, criterion)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
-            print(valid_loss, dice)
+            print('Epoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
             if best_val_loss < dice:
+                print('Save')
                 torch.save(net.state_dict(), 'models/unet.pth')
                 best_val_loss = dice
 
@@ -78,8 +80,8 @@ def test(net):
     """
     if torch.cuda.is_available():
         net.cuda()
-    net = nn.DataParallel(net)
-    net.load_state_dict(torch.load('models/unet.pth'))
+    # net = nn.DataParallel(net)
+    # net.load_state_dict(torch.load('models/unet.pth'))
 
     pred_labels = pred(test_loader, net)
     names = glob.glob(CARANA_DIR+'/test/*.jpg')
@@ -92,23 +94,24 @@ if __name__ == '__main__':
     net = UNet()
     import cv2
     from scipy.misc import imshow
-    # train_loader, valid_loader = get_train_dataloader(20), get_valid_dataloader(64)
+    # valid_loader, train_loader =  get_valid_dataloader(64), get_train_dataloader(25)
     # train(net)
-    valid_loader = get_valid_dataloader(64)
+    # valid_loader = get_valid_dataloader(64)
     if torch.cuda.is_available():
         net.cuda()
     net = nn.DataParallel(net)
     net.load_state_dict(torch.load('models/unet.pth'))
 
-    pred_labels = pred(valid_loader, net)
+    # print(evaluate(valid_loader, net, nn.NLLLoss2d()))
+    # pred_labels = pred(valid_loader, net)
 
-    for l in pred_labels:
-        print(l.sum())
-        print(l)
-        imshow( l)
+    # for l in pred_labels:
+        # print(l.sum())
+        # print(l)
+        # imshow( l)
     # names = glob.glob(CARANA_DIR+'/test/*.jpg')
     # names = [name.split('/')[-1][:-4] for name in names]
     # save mask
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
-    # test_loader = get_test_dataloader(64)
-    # test(net)
+    test_loader = get_test_dataloader(64)
+    test(net)

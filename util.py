@@ -4,6 +4,7 @@ import cv2
 import os
 from torch.autograd import Variable
 import numpy as np
+from torch.nn import functional as F
 
 
 def pred(dataloader, net):
@@ -16,6 +17,7 @@ def pred(dataloader, net):
         # print(img.numpy())
         img = Variable(img.cuda(), volatile=True)
         _logits, _log_logits = net(img)
+        # print(_logits)
         l = _logits.data.cpu().numpy()
         l = np.argmax(l, axis=1)
 
@@ -35,6 +37,9 @@ def evaluate(dataloader, net, criterion):
         label = label.long()
         label = Variable(label.cuda(), volatile=True)
         logtis, log_logits = net(img)
+        # print(logtis.data, label.data)
+        # log_logits = F.log_softmax(logtis)
+        # print(log_logits)
         loss = criterion(log_logits, label)
         avg_loss = loss.data[0]*batch_size + avg_loss
     return avg_loss/total_size
@@ -71,9 +76,15 @@ if __name__ == '__main__':
     import glob
     from scipy.misc import imread
     imgnames = glob.glob(CARANA_DIR+"/unet/*.png")
-    img = imread(imgnames[4], 'L')
+    testimnames = glob.glob(CARANA_DIR+'/test/*.jpg')
+    for testim, name in zip(testimnames, imgnames):
+        img = imread(name, 'L')
+        img = cv2.resize(img, (1918, 1280))
+        test = imread(testim)
     # save_mask(img, 'unte', ['1', '2'])
 
    #  for img in glob.glob('unte/*.png'):
-    cv2.imshow('f', img)
-    cv2.waitKey()
+
+        cv2.imshow('f', img)
+        cv2.imshow('co', test)
+        cv2.waitKey()

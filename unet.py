@@ -8,13 +8,17 @@ class UNetBlock(nn.Module):
     def __init__(self, in_feats, out_feats):
         super(UNetBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_feats, out_channels=out_feats, kernel_size=3, padding=1)
+        # self.bn1 = nn.BatchNorm2d(out_feats)
         self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, padding=1)
+        # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def forward(self, x):
         x = self.conv1(x)
+        # x = self.bn2(x)
         x = F.relu(x)
 
         x = self.conv2(x)
+        # ¸¸¸x = self.bn2(x)
         x = F.relu(x)
 
         return x
@@ -26,7 +30,9 @@ class UNetUpBlock(nn.Module):
         self.out_size = out_size
         self.upsampling = nn.UpsamplingNearest2d(scale_factor=2)
         self.conv1 = nn.Conv2d(in_feats, out_feats, kernel_size=3, padding=1)
+       # self.bn1 = nn.BatchNorm2d(out_feats)
         self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, padding=1)
+       # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def crop(self, feat):
         """
@@ -44,8 +50,10 @@ class UNetUpBlock(nn.Module):
         # feat = self.crop(feat)
         x = torch.cat((x, feat), 1)
         x = self.conv1(x)
+        # x = self.bn1(x)
         x = F.relu(x)
         x = self.conv2(x)
+        # x = self.bn2(x)
         x = F.relu(x)
         return x
 
@@ -71,9 +79,13 @@ class UNet(nn.Module):
         self.upblock1 = UNetUpBlock(512, 256, 32)   # 256*32*32
         self.upblock2 = UNetUpBlock(384, 128, 64)   # 128*64*64
         self.upblock3 = UNetUpBlock(192, 64, 128)    # 64*128*128
-        self.upblock4 = UNetUpBlock(96, 32, 256)    # 32*256*256
+        self.upblock4 = UNetUpBlock(96, 64, 256)    # 32*256*256
 
-        self.final_conv = nn.Conv2d(32, 2, 1)
+        self.final_conv = nn.Sequential(
+            nn.Conv2d(64, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 2, 1)
+        )
 
     def forward(self, x):
         feat1 = self.downblock1(x)       # 32*128*192
