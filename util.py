@@ -54,12 +54,16 @@ def dice_coeff(preds, targets):
     return (2. * intersection) / im_sum
 
 
-def rle_encode(mask_image):
-    """https://www.kaggle.com/stainsby/fast-tested-rle"""
-    pixels = mask_image.flatten()
-    runs = np.where(pixels[1:] != pixels[:-1])[0] + 2
+def run_length_encode(mask):
+    '''
+    img: numpy array, 1 - mask, 0 - background
+    Returns run length as string formated
+    '''
+    inds = mask.flatten()
+    runs = np.where(inds[1:] != inds[:-1])[0] + 2
     runs[1::2] = runs[1::2] - runs[:-1:2]
-    return runs
+    rle = ' '.join([str(r) for r in runs])
+    return rle
 
 
 def save_mask(mask_imgs, model_name, names):
