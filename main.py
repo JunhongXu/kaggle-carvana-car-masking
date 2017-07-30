@@ -7,6 +7,9 @@ from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloa
 from unet import UNet
 from util import pred, evaluate, dice_coeff, rle_encode, save_mask
 import numpy as np
+import cv2
+from scipy.misc import imread
+import pandas as pd
 
 
 EPOCH = 50
@@ -90,17 +93,32 @@ def test(net):
     save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
 
 
+def do_submisssion():
+    mask_names = glob.glob(CARANA_DIR+'unet/*.png')
+    names = []
+    rle = []
+    # df = pd.DataFrame({'img'})
+    for name in mask_names:
+        name = name.split('/')[-1][:-4]
+        print(name)
+        names.append(name)
+        mask = imread(name)
+
+        rle.append(rle_encode(cv2.resize(mask, (1918, 1280))))
+    df = pd.DataFrame({'img': names, 'rle_mask': rle})
+    df.to_csv(CARANA_DIR+'/sub_simple_unet.csv.gz', index=False, compression='gzip')
+
+
 if __name__ == '__main__':
-    net = UNet()
-    import cv2
+    # net = UNet()
     from scipy.misc import imshow
     # valid_loader, train_loader =  get_valid_dataloader(64), get_train_dataloader(25)
     # train(net)
     # valid_loader = get_valid_dataloader(64)
-    if torch.cuda.is_available():
-        net.cuda()
-    net = nn.DataParallel(net)
-    net.load_state_dict(torch.load('models/unet.pth'))
+    # if torch.cuda.is_available():
+    #     net.cuda()
+    # net = nn.DataParallel(net)
+    # net.load_state_dict(torch.load('models/unet.pth'))
 
     # print(evaluate(valid_loader, net, nn.NLLLoss2d()))
     # pred_labels = pred(valid_loader, net)
@@ -113,5 +131,6 @@ if __name__ == '__main__':
     # names = [name.split('/')[-1][:-4] for name in names]
     # save mask
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
-    test_loader = get_test_dataloader(64)
-    test(net)
+    # test_loader = get_test_dataloader(64)
+    # test(net)
+    do_submisssion()
