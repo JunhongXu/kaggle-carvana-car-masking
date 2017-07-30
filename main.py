@@ -84,7 +84,8 @@ def test(net):
 
     logtis, log_logits = pred(test_loader, net)
     pred_mask = np.argmax(logtis, axis=1)
-
+    names = glob.glob(CARANA_DIR+'/test/*.jpg')
+    names = [name.split('/')[-1][:-4] for name in names]
     # save mask
     save_mask(mask_imgs=pred_mask, model_name='unet', names=names)
 
@@ -93,8 +94,6 @@ if __name__ == '__main__':
     net = UNet()
     # train_loader, valid_loader = get_train_dataloader(20), get_valid_dataloader(64)
     # train(net)
-    names = glob.glob(CARANA_DIR+'/test/*.jpg')
-    names = [name[-1][:-3] for name in names.split('/')]
-    print(names)
+
     test_loader = get_test_dataloader(128)
     test(net)
