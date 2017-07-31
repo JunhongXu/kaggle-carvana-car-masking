@@ -83,8 +83,10 @@ if __name__ == '__main__':
     testimnames = glob.glob(CARANA_DIR+'/test/*.jpg')
     for testim, name in zip(testimnames, imgnames):
         img = imread(name, 'L')
-        img = cv2.resize(img, (1918, 1280))
+        img = cv2.resize(img, (384, 256))
+
         test = imread(testim)
+        test = cv2.resize(test, (384, 256))
     # save_mask(img, 'unte', ['1', '2'])
 
    #  for img in glob.glob('unte/*.png'):
