@@ -4,7 +4,7 @@ from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
 from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
-from unet import UNetV1, UNetV2
+from unet import UNetV1, UNetV2, UNetV3
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
 import numpy as np
 import cv2
@@ -19,11 +19,9 @@ L2_DECAY = 5e-4
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 5:
-        lr = 0.005
-    elif 5 < epoch <= 15:
         lr = 0.001
-    elif 15 < epoch <= 35:
-        lr = 0.0001
+    elif 5 < epoch <= 35:
+        lr = 0.0005
     elif 35 < epoch <= 40:
         lr = 0.0005
     else:
@@ -34,8 +32,8 @@ def lr_scheduler(optimizer, epoch):
 
 def train(net):
     # valid_loader = get_valid_dataloader(20)
-    optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
-    # optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
+    # optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
+    optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
     criterion = nn.NLLLoss2d()
     if torch.cuda.is_available():
         net.cuda()
@@ -45,7 +43,7 @@ def train(net):
     best_val_loss = 0.0
     for e in range(EPOCH):
         # iterate over batches
-        # lr_scheduler(optimizer, e)
+        lr_scheduler(optimizer, e)
         net.train()
         for idx, (img, label) in enumerate(train_loader):
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
@@ -72,7 +70,7 @@ def train(net):
             print('Epoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
             if best_val_loss < dice:
                 print('Save')
-                torch.save(net.state_dict(), 'models/unet-v2.pth')
+                torch.save(net.state_dict(), 'models/unet-v3.pth')
                 best_val_loss = dice
 
 
@@ -111,15 +109,15 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNetV2()
+    net = UNetV3()
     # from scipy.misc import imshow
-    # valid_loader, train_loader = get_valid_dataloader(32), get_train_dataloader(20)
-    # train(net)
+    valid_loader, train_loader = get_valid_dataloader(64), get_train_dataloader(32)
+    train(net)
     # valid_loader = get_valid_dataloader(64)
-    if torch.cuda.is_available():
-        net.cuda()
-    net = nn.DataParallel(net)
-    net.load_state_dict(torch.load('models/unet-v2.pth'))
+    # if torch.cuda.is_available():
+    #     net.cuda()
+    # net = nn.DataParallel(net)
+    # net.load_state_dict(torch.load('models/unet-v2.pth'))
 
 
     # print(evaluate(valid_loader, net, nn.NLLLoss2d()))
@@ -132,8 +130,8 @@ if __name__ == '__main__':
     # names = glob.glob(CARANA_DIR+'/test/*.jpg')
     # names = [name.split('/')[-1][:-4] for name in names]
     # save mask
-    test_loader = get_test_dataloader(30)
+    # test_loader = get_test_dataloader(30)
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
 
-    test(net)
-    do_submisssion()
+    # test(net)
+    # do_submisssion()
