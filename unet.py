@@ -8,17 +8,17 @@ class UNetBlock(nn.Module):
     def __init__(self, in_feats, out_feats):
         super(UNetBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_feats, out_channels=out_feats, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(out_feats)
+        # self.bn1 = nn.BatchNorm2d(out_feats)
         self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_feats)
+        # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.bn2(x)
+       # x = self.bn2(x)
         x = F.relu(x)
 
         x = self.conv2(x)
-        x = self.bn2(x)
+       # x = self.bn2(x)
         x = F.relu(x)
 
         return x
@@ -30,9 +30,9 @@ class UNetUpBlock(nn.Module):
         self.out_size = out_size
         self.upsampling = nn.UpsamplingNearest2d(scale_factor=2)
         self.conv1 = nn.Conv2d(in_feats, out_feats, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(out_feats)
+        #self.bn1 = nn.BatchNorm2d(out_feats)
         self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_feats)
+       # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def crop(self, feat):
         """
@@ -187,7 +187,7 @@ class UNetV3(nn.Module):    # small one with bn
 
         self.downblock5 = UNetBlock(128, 256)   # 512*16*16
         self.downblock6 = nn.Conv2d(256, 128, 1)    #256*16*16
-        self.bn1 = nn.BatchNorm2d(128)
+        # self.bn1 = nn.BatchNorm2d(128)
 
         self.upblock1 = UNetUpBlock(256, 128, 32)   # 256*32*32
         self.upblock2 = UNetUpBlock(192, 64, 64)   # 128*64*64
@@ -216,7 +216,7 @@ class UNetV3(nn.Module):    # small one with bn
 
         out = self.downblock5(out)    # 512*16*24
         out = self.downblock6(out)      # 256*16*24
-        out = self.bn1(out)
+        # out = self.bn1(out)
         out = F.relu(out)
 
         up1 = self.upblock1(out, feat4) # 256*32*48

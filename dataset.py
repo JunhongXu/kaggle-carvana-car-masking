@@ -5,9 +5,10 @@ import numpy as np
 from PIL import Image
 import cv2
 import torch
+import random
 
 
-CARANA_DIR = '/media/jxu7/BACK-UP/Data/carvana'
+CARANA_DIR = '/Users/JunhongXu/Desktop/kaggle/Carvana'
 mean = [0.68404490794406181, 0.69086280353012897, 0.69792341323303619]
 std = [0.24479961336692371, 0.24790616166162652, 0.24398260796692428]
 
@@ -62,9 +63,13 @@ class CarvanaDataSet(Dataset):
     def __getitem__(self, index):
         if not self.test:
             img = self.imgs[index]
+            label = self.labels[index]
             if self.transform is not None:
-                img = self.transform(img)
-            return img/255., self.labels[index]
+                for t in self.transform.transforms[:-2]:
+                    img, label = t(img, label)
+                for t in self.transform.transforms[-2:]:
+                    img = t(img)
+            return img/255., label
         else:
             img = cv2.resize(cv2.imread(self.img_names[index]), (self.W, self.H))
             if self.transform is not None:
@@ -76,17 +81,39 @@ class CarvanaDataSet(Dataset):
 
 
 def toTensor(img):
-    img = img.transpose((2, 0, 1)).astype(np.float32)
-    tensor = torch.from_numpy(img).float()
-    return tensor
+    if len(img.shape) < 3:
+        return torch.from_numpy(img).float()
+    else:
+        img = img.transpose((2, 0, 1)).astype(np.float32)
+        tensor = torch.from_numpy(img).float()
+        return tensor
+
+
+class HorizontalFlip(object):
+    def __call__(self, img, l):
+        u = random.random()
+        if u < 0.5:
+            img = cv2.flip(img, 0)
+            l = cv2.flip(l, 0)
+        return img, l
+
+
+class VerticalFlip(object):
+    def __call__(self, img,l):
+        u = random.random()
+        if u < 0.5:
+            img = cv2.flip(img, 1)
+            l = cv2.flip(l, 1)
+        return img, l
 
 
 def get_valid_dataloader(batch_size):
-    return DataLoader( batch_size=batch_size,
+    return DataLoader(batch_size=batch_size,
         dataset=CarvanaDataSet(
             valid=True,
             transform=Compose(
-                [Lambda(lambda x: toTensor(x)), Normalize(mean=mean, std=std)]
+                [VerticalFlip(), HorizontalFlip(), Lambda(lambda x: toTensor(x)),
+                                                                 Normalize(mean=mean, std=std)]
             )
         )
 
@@ -96,8 +123,8 @@ def get_valid_dataloader(batch_size):
 
 def get_train_dataloader(batch_size=64):
     return DataLoader(batch_size=batch_size, shuffle=True,
-                      dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
-                                                                Normalize(mean=mean, std=std)])))
+                      dataset=CarvanaDataSet(transform=Compose( [VerticalFlip(), HorizontalFlip(), Lambda(lambda x: toTensor(x)),
+                                                                 Normalize(mean=mean, std=std)])))
 
 
 def get_test_dataloader(batch_size=64):
@@ -107,7 +134,10 @@ def get_test_dataloader(batch_size=64):
 
 
 if __name__ == '__main__':
-    loader = get_train_dataloader(64)
+    loader = get_valid_dataloader(1)
     for data in loader:
         i, l = data
-        print(i.size())
+        cv2.imshow('f', i.numpy()[0].transpose(1, 2, 0))
+        cv2.imshow('l', l.numpy()[0])
+        print(l)
+        cv2.waitKey()
