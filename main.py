@@ -5,7 +5,7 @@ from torch.optim import Adam, SGD
 import glob
 from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
 from unet import UNet
-from util import pred, evaluate, dice_coeff, rle_encode, save_mask
+from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
 import numpy as np
 import cv2
 from scipy.misc import imread
@@ -94,17 +94,18 @@ def test(net):
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'unet/*.png')
+    mask_names = glob.glob(CARANA_DIR+'/unet/*.png')
     names = []
     rle = []
     # df = pd.DataFrame({'img'})
-    for name in mask_names:
-        name = name.split('/')[-1][:-4]
-        print(name)
-        names.append(name)
-        mask = imread(name)
+    for index, test_name in enumerate(mask_names):
+        name = test_name.split('/')[-1][:-4]
+        if index % 1000 ==0:
+            print(name+'.jpg', index)
+        names.append(name+'.jpg')
+        mask = imread(test_name)
 
-        rle.append(rle_encode(cv2.resize(mask, (1918, 1280))))
+        rle.append(run_length_encode(cv2.resize(mask, (1918, 1280))))
     df = pd.DataFrame({'img': names, 'rle_mask': rle})
     df.to_csv(CARANA_DIR+'/sub_simple_unet.csv.gz', index=False, compression='gzip')
 
