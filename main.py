@@ -4,7 +4,7 @@ from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
 from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
-from unet import UNet
+from unet import UNetV1, UNetV2
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
 import numpy as np
 import cv2
@@ -18,12 +18,12 @@ L2_DECAY = 5e-4
 
 
 def lr_scheduler(optimizer, epoch):
-    if 0 <= epoch <=5:
-        lr = 0.1
+    if 0 <= epoch <= 5:
+        lr = 0.01
     elif 5 < epoch <= 15:
-        lr = 0.05
-    elif 15 < epoch <=35:
-        lr = 0.001
+        lr = 0.005
+    elif 15 < epoch <= 35:
+        lr = 0.0001
     elif 35 < epoch <= 40:
         lr = 0.0005
     else:
@@ -34,18 +34,18 @@ def lr_scheduler(optimizer, epoch):
 
 def train(net):
     # valid_loader = get_valid_dataloader(20)
-    optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
-    # optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
+    # optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
+    optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
     criterion = nn.NLLLoss2d()
     if torch.cuda.is_available():
         net.cuda()
     net = nn.DataParallel(net)
     print(net)
     # train
-    best_val_loss =0.0
+    best_val_loss = 0.0
     for e in range(EPOCH):
         # iterate over batches
-        # lr_scheduler(optimizer, e)
+        lr_scheduler(optimizer, e)
         net.train()
         for idx, (img, label) in enumerate(train_loader):
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
@@ -72,7 +72,7 @@ def train(net):
             print('Epoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
             if best_val_loss < dice:
                 print('Save')
-                torch.save(net.state_dict(), 'models/unet.pth')
+                torch.save(net.state_dict(), 'models/unet-v2.pth')
                 best_val_loss = dice
 
 
@@ -111,15 +111,16 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    # net = UNet()
+    net = UNetV2()
     from scipy.misc import imshow
-    # valid_loader, train_loader =  get_valid_dataloader(64), get_train_dataloader(25)
-    # train(net)
+    valid_loader, train_loader = get_valid_dataloader(64), get_train_dataloader(25)
+    train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #     net.cuda()
     # net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet.pth'))
+
 
     # print(evaluate(valid_loader, net, nn.NLLLoss2d()))
     # pred_labels = pred(valid_loader, net)
@@ -134,4 +135,4 @@ if __name__ == '__main__':
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
     # test_loader = get_test_dataloader(64)
     # test(net)
-    do_submisssion()
+    # do_submisssion()
