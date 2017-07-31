@@ -29,6 +29,7 @@ class CarvanaDataSet(Dataset):
                 self.imgs = np.empty((len(self.img_names), H, W, 3))
             else:
                 self.img_names = all_imgs[:-100]
+                print(len(self.img_names))
                 self.label_names = all_label_names[:-100]
                 self.imgs = np.empty((len(self.img_names), H, W, 3))
 
@@ -106,10 +107,7 @@ def get_test_dataloader(batch_size=64):
 
 
 if __name__ == '__main__':
-    loader = get_valid_dataloader(64)
-    for img, l in loader:
-        print(img.size())
-    # print(loader.dataset.mean_std())
-    cv2.imshow('frame', loader.dataset.imgs[0])
-    cv2.imshow('label', loader.dataset.labels[0])
-    cv2.waitKey()
+    loader = get_train_dataloader(64)
+    for data in loader:
+        i, l = data
+        print(i.size())

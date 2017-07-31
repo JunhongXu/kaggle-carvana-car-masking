@@ -196,7 +196,7 @@ class UNetV3(nn.Module):    # small one with bn
 
         self.final_conv = nn.Sequential(
             nn.Conv2d(16, 16, 1),
-            nn.BatchNorm2d(16),
+            # nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.Conv2d(16, 2, 1)
         )
