@@ -121,15 +121,16 @@ def get_valid_dataloader(batch_size):
     )
 
 
-def get_train_dataloader(batch_size=64):
+def get_train_dataloader(H=512, W=512, batch_size=64):
     return DataLoader(batch_size=batch_size, shuffle=True,
-                      dataset=CarvanaDataSet(transform=Compose( [VerticalFlip(), HorizontalFlip(), Lambda(lambda x: toTensor(x)),
+                      dataset=CarvanaDataSet(H=H, W=W, transform=Compose([VerticalFlip(), HorizontalFlip(),
+                                                                           Lambda(lambda x: toTensor(x)),
                                                                  Normalize(mean=mean, std=std)])))
 
 
-def get_test_dataloader(batch_size=64):
+def get_test_dataloader(H=512, W=512, batch_size=64):
     return DataLoader(batch_size=batch_size, num_workers=4,
-                      dataset=CarvanaDataSet(transform=Compose([Lambda(lambda x: toTensor(x)),
+                      dataset=CarvanaDataSet(H=H, W=W, transform=Compose([Lambda(lambda x: toTensor(x)),
                                                                 Normalize(mean=mean, std=std)]), test=True))
 
 

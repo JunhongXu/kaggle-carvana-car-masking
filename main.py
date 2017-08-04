@@ -19,21 +19,21 @@ L2_DECAY = 5e-4
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 5:
-        lr = 0.01
+        lr = 0.0009
     elif 5 < epoch <= 35:
-        lr = 0.005
-    elif 35 < epoch <= 40:
         lr = 0.0005
-    else:
+    elif 35 < epoch <= 40:
         lr = 0.0001
+    else:
+        lr = 0.00005
     for param in optimizer.param_groups:
         param['lr'] = lr
 
 
 def train(net):
     # valid_loader = get_valid_dataloader(20)
-    optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
-    # optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
+    # optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
+    optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
     criterion = nn.NLLLoss2d()
     if torch.cuda.is_available():
         net.cuda()
@@ -43,7 +43,7 @@ def train(net):
     best_val_loss = 0.0
     for e in range(EPOCH):
         # iterate over batches
-        # lr_scheduler(optimizer, e)
+        lr_scheduler(optimizer, e)
         net.train()
         for idx, (img, label) in enumerate(train_loader):
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
@@ -111,7 +111,7 @@ def do_submisssion():
 if __name__ == '__main__':
     net = UNetV3()
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(64), get_train_dataloader(64)
+    valid_loader, train_loader = get_valid_dataloader(20), get_train_dataloader(H=640, W=960, batch_size=10)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
