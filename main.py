@@ -18,9 +18,9 @@ L2_DECAY = 5e-4
 
 
 def lr_scheduler(optimizer, epoch):
-    if 0 <= epoch <= 5:
-        lr = 0.0009
-    elif 5 < epoch <= 35:
+    if 0 <= epoch <= 10:
+        lr = 0.001
+    elif 10 < epoch <= 35:
         lr = 0.0005
     elif 35 < epoch <= 40:
         lr = 0.0001
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     net = UNetV3()
     # from scipy.misc import imshow
     valid_loader, train_loader = get_valid_dataloader(10, H=512, W=768), \
-                                 get_train_dataloader(H=512, W=768, batch_size=8, preload=True, num_works=4)
+                                 get_train_dataloader(H=512, W=768, batch_size=12, preload=True, num_works=4)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():

@@ -8,17 +8,17 @@ class UNetBlock(nn.Module):
     def __init__(self, in_feats, out_feats):
         super(UNetBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_feats, out_channels=out_feats, kernel_size=3, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_feats)
+        # self.bn1 = nn.BatchNorm2d(out_feats)
         self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_feats)
+        # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.bn2(x)
+        # x = self.bn2(x)
         x = F.relu(x)
 
         x = self.conv2(x)
-        x = self.bn2(x)
+        # x = self.bn2(x)
         x = F.relu(x)
 
         return x
@@ -30,12 +30,12 @@ class UNetUpBlock(nn.Module):
         self.out_size = out_size
         self.upsampling = nn.UpsamplingNearest2d(scale_factor=2)
         self.conv1 = nn.Conv2d(in_feats, out_feats*2, kernel_size=3, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_feats*2)
+        # self.bn1 = nn.BatchNorm2d(out_feats*2)
         # self.conv2 = nn.Conv2d(out_feats*2, out_feats, kernel_size=3, padding=1, bias=False)
         # self.bn2 = nn.BatchNorm2d(out_feats)
         # half the channel
         self.conv2 = nn.Conv2d(out_feats*2, out_feats, kernel_size=1, stride=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_feats)
+        # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def crop(self, feat):
         """
@@ -53,10 +53,10 @@ class UNetUpBlock(nn.Module):
         # feat = self.crop(feat)
         x = torch.cat((x, feat), 1)
         x = self.conv1(x)
-        x = self.bn1(x)
+        # x = self.bn1(x)
         x = F.relu(x)
         x = self.conv2(x)
-        x = self.bn2(x)
+        # x = self.bn2(x)
         x = F.relu(x)
         # x = self.conv3(x)
         # x = self.bn3(x)
@@ -82,11 +82,11 @@ class UNetV1(nn.Module):
         # transition block
         self.transition = nn.Sequential(
             nn.Conv2d(512, 1024, 1, bias=False),    # 1024*64*96
-            nn.BatchNorm2d(1024),
+            # nn.BatchNorm2d(1024),
             nn.ReLU(),
 
             nn.Conv2d(1024, 512, 1, bias=False),    # 512*64*96
-            nn.BatchNorm2d(512),
+            # nn.BatchNorm2d(512),
             nn.ReLU()
         )
 
@@ -97,7 +97,7 @@ class UNetV1(nn.Module):
 
         self.final_conv = nn.Sequential(
             nn.Conv2d(32, 16, 3, padding=1),
-            nn.BatchNorm2d(16),
+            # nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.Conv2d(16, 2, 1)
         )
