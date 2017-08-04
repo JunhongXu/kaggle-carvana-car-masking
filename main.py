@@ -59,7 +59,7 @@ def train(net):
             optimizer.step()
 
             if idx % 10 == 0:
-                print(loss.data[0])
+                print('\r Training loss is', loss.data[0], flush=True, end='')
 
         if e % 1 == 0:
             # validate
