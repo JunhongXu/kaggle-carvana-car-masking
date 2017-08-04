@@ -14,11 +14,12 @@ std = [0.24479961336692371, 0.24790616166162652, 0.24398260796692428]
 
 
 class CarvanaDataSet(Dataset):
-    def __init__(self, H=256, W=int(256*1.5), valid=False, transform=None, test=False):
+    def __init__(self, H=256, W=int(256*1.5), valid=False, transform=None, test=False, preload=False):
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
         self.transform = transform
         self.test = test
+        self.preload = preload
         print('[!]Loading!' + CARANA_DIR)
         if not test:
             all_imgs = sorted(glob.glob(CARANA_DIR+'/train/train/*.jpg'))
@@ -27,20 +28,23 @@ class CarvanaDataSet(Dataset):
             if valid:
                 self.img_names = all_imgs[-100:]
                 self.label_names = all_label_names[-100:]
-                self.imgs = np.empty((len(self.img_names), H, W, 3))
+                if not self.preload:
+                    self.imgs = np.empty((len(self.img_names), H, W, 3))
             else:
                 self.img_names = all_imgs[:-100]
                 print(len(self.img_names))
                 self.label_names = all_label_names[:-100]
-                self.imgs = np.empty((len(self.img_names), H, W, 3))
+                if not self.preload:
+                    self.imgs = np.empty((len(self.img_names), H, W, 3))
 
-            self.labels = np.empty((len(self.label_names), H, W))
-            for idx, img_name in enumerate(self.img_names):
-                self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
-            for idx, label_name in enumerate(self.label_names):
-                l = Image.open(label_name).resize((W, H))
-                l = np.array(l)
-                self.labels[idx] = l
+            if not self.preload:
+                self.labels = np.empty((len(self.label_names), H, W))
+                for idx, img_name in enumerate(self.img_names):
+                    self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
+                for idx, label_name in enumerate(self.label_names):
+                    l = Image.open(label_name).resize((W, H))
+                    l = np.array(l)
+                    self.labels[idx] = l
         else:
             # in test mode, read the test image on the fly
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')
@@ -62,13 +66,19 @@ class CarvanaDataSet(Dataset):
 
     def __getitem__(self, index):
         if not self.test:
-            img = self.imgs[index]
-            label = self.labels[index]
+            if self.preload:
+                img = cv2.resize(cv2.imread(self.img_names[index]), (self.W, self.H))
+                label = Image.open(self.label_names[index]).resize((self.W, self.H))
+                label = np.array(label)
+            else:
+                img = self.imgs[index]
+                label = self.labels[index]
             if self.transform is not None:
-                for t in self.transform.transforms[:-2]:
-                    img, label = t(img, label)
-                for t in self.transform.transforms[-2:]:
-                    img = t(img)
+                if len(self.transform.transforms) > 2:
+                    for t in self.transform.transforms[:-2]:
+                        img, label = t(img, label)
+                    for t in self.transform.transforms[-2:]:
+                        img = t(img)
             return img/255., label
         else:
             img = cv2.resize(cv2.imread(self.img_names[index]), (self.W, self.H))
@@ -107,10 +117,11 @@ class VerticalFlip(object):
         return img, l
 
 
-def get_valid_dataloader(batch_size):
-    return DataLoader(batch_size=batch_size,
+def get_valid_dataloader(batch_size, H=512, W=512, preload=False, num_works=0):
+    return DataLoader(batch_size=batch_size, num_workers=num_works,
         dataset=CarvanaDataSet(
             valid=True,
+            H=H, W=W, preload=preload,
             transform=Compose(
                 [VerticalFlip(), HorizontalFlip(), Lambda(lambda x: toTensor(x)),
                                                                  Normalize(mean=mean, std=std)]
@@ -121,9 +132,10 @@ def get_valid_dataloader(batch_size):
     )
 
 
-def get_train_dataloader(H=512, W=512, batch_size=64):
-    return DataLoader(batch_size=batch_size, shuffle=True,
-                      dataset=CarvanaDataSet(H=H, W=W, transform=Compose([VerticalFlip(), HorizontalFlip(),
+def get_train_dataloader(H=512, W=512, batch_size=64, preload=False, num_works=0):
+    return DataLoader(batch_size=batch_size, shuffle=True, num_workers=num_works,
+                      dataset=CarvanaDataSet(preload=preload, H=H, W=W, transform=Compose([VerticalFlip(),
+                                                                                           HorizontalFlip(),
                                                                            Lambda(lambda x: toTensor(x)),
                                                                  Normalize(mean=mean, std=std)])))
 
@@ -135,10 +147,10 @@ def get_test_dataloader(H=512, W=512, batch_size=64):
 
 
 if __name__ == '__main__':
-    loader = get_valid_dataloader(1)
+    loader = get_valid_dataloader(1, H=640, W=960, preload=True, num_works=3)
     for data in loader:
         i, l = data
         cv2.imshow('f', i.numpy()[0].transpose(1, 2, 0))
-        cv2.imshow('l', l.numpy()[0])
-        print(l)
+        cv2.imshow('l', l.numpy()[0]*100)
+        print(l[l==1].sum())
         cv2.waitKey()
