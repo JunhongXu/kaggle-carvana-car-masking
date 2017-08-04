@@ -59,7 +59,7 @@ def train(net):
             optimizer.step()
 
             if idx % 10 == 0:
-                print('\r Training loss is', loss.data[0], flush=True, end='')
+                print('\r Training loss is', loss.data[0], flush=True, end='\n')
 
         if e % 1 == 0:
             # validate
@@ -111,8 +111,8 @@ def do_submisssion():
 if __name__ == '__main__':
     net = UNetV3()
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(20, H=640, W=960, preload=True, num_works=4), \
-                                 get_train_dataloader(H=640, W=960, batch_size=10, preload=True, num_works=4)
+    valid_loader, train_loader = get_valid_dataloader(10, H=512, W=768), \
+                                 get_train_dataloader(H=512, W=768, batch_size=8, preload=True, num_works=4)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():

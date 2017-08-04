@@ -23,13 +23,13 @@ def pred(dataloader, net):
 
         pred_labels[prev: prev+batch_size] = l
         prev = prev + batch_size
-        print('Batch index', idx)
+        # print('Batch index', idx)
     return pred_labels
 
 
 def evaluate(dataloader, net, criterion):
     net.eval()
-    total_size = len(dataloader.dataset.imgs)
+    total_size = len(dataloader.dataset.img_names)
     avg_loss = 0.0
     for img, label in dataloader:
         batch_size = img.size(0)

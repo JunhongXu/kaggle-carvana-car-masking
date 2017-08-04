@@ -8,7 +8,7 @@ import torch
 import random
 
 
-CARANA_DIR = '/Users/JunhongXu/Desktop/kaggle/Carvana'
+CARANA_DIR = '//media/jxu7/BACK-UP/Data/carvana'
 mean = [0.68404490794406181, 0.69086280353012897, 0.69792341323303619]
 std = [0.24479961336692371, 0.24790616166162652, 0.24398260796692428]
 
