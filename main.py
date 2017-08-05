@@ -44,8 +44,8 @@ def train(net):
     for e in range(EPOCH):
         # iterate over batches
         lr_scheduler(optimizer, e)
-        net.train()
         for idx, (img, label) in enumerate(train_loader):
+            net.train()
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
             label = label.long()
             label = Variable(label.cuda()) if torch.cuda.is_available() else Variable(label)
