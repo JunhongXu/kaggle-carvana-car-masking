@@ -79,6 +79,9 @@ class CarvanaDataSet(Dataset):
                         img, label = t(img, label)
                     for t in self.transform.transforms[-2:]:
                         img = t(img)
+                else:
+                    for t in self.transform.transforms[-2:]:
+                        img = t(img)
             return img/255., label
         else:
             img = cv2.resize(cv2.imread(self.img_names[index]), (self.W, self.H))
