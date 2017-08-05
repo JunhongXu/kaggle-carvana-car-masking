@@ -67,33 +67,33 @@ class UNetUpBlock(nn.Module):
 class UNetV1(nn.Module):
     def __init__(self):
         super(UNetV1, self).__init__()
-        self.downblock1 = UNetBlock(3, 32)      # 64*1024*1536
+        self.downblock1 = UNetBlock(3, 64)      # 64*1024*1536
         self.pool1 = nn.MaxPool2d(2, stride=2)  # 64*512*768
 
-        self.downblock2 = UNetBlock(32, 64)    # 128*512*768
+        self.downblock2 = UNetBlock(64, 128)    # 128*512*768
         self.pool2 = nn.MaxPool2d(2, stride=2)  # 128*256*384
 
-        self.downblock3 = UNetBlock(64, 128)   # 256*256*384
+        self.downblock3 = UNetBlock(128, 256)   # 256*256*384
         self.pool3 = nn.MaxPool2d(2, 2)         # 256*128*192
 
-        self.downblock4 = UNetBlock(128, 256)   # 512*128*192
+        self.downblock4 = UNetBlock(256, 512)   # 512*128*192
         self.pool4 = nn.MaxPool2d(2, 2)         # 512*64*96
 
         # transition block
         self.transition = nn.Sequential(
-            nn.Conv2d(256, 512, 1, bias=False),    # 1024*64*96
-            nn.BatchNorm2d(512),
+            nn.Conv2d(512, 1024, 3, padding=1, bias=False),    # 1024*64*96
+            nn.BatchNorm2d(1024),
             nn.ReLU(),
 
-            nn.Conv2d(512, 256, 1, bias=False),    # 512*64*96
-            nn.BatchNorm2d(256),
+            nn.Conv2d(1024, 512, 1, bias=False),    # 512*64*96
+            nn.BatchNorm2d(512),
             nn.ReLU()
         )
 
-        self.upblock1 = UNetUpBlock(512, 128)        # 128*128*192
-        self.upblock2 = UNetUpBlock(256, 64)         # 128*256*384
-        self.upblock3 = UNetUpBlock(128, 32)          # 64*128*128
-        self.upblock4 = UNetUpBlock(64, 32)          # 32*256*256
+        self.upblock1 = UNetUpBlock(1024, 256)        # 128*128*192
+        self.upblock2 = UNetUpBlock(512, 128)         # 128*256*384
+        self.upblock3 = UNetUpBlock(256, 64)          # 64*128*128
+        self.upblock4 = UNetUpBlock(128, 32)          # 32*256*256
 
         self.final_conv = nn.Sequential(
             nn.Conv2d(32, 16, stride=1, padding=1, kernel_size=3, bias=False),
