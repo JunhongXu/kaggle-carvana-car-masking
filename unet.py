@@ -7,9 +7,9 @@ from torch.autograd import Variable
 class UNetBlock(nn.Module):
     def __init__(self, in_feats, out_feats):
         super(UNetBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_feats, out_channels=out_feats, kernel_size=3, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(in_feats, out_channels=out_feats, kernel_size=3, padding=1)
         # self.bn1 = nn.BatchNorm2d(out_feats)
-        self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, padding=1)
         # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def forward(self, x):
@@ -29,12 +29,12 @@ class UNetUpBlock(nn.Module):
         super(UNetUpBlock, self).__init__()
         self.out_size = out_size
         self.upsampling = nn.UpsamplingNearest2d(scale_factor=2)
-        self.conv1 = nn.Conv2d(in_feats, out_feats*2, kernel_size=3, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(in_feats, out_feats*2, kernel_size=3, padding=1)
         # self.bn1 = nn.BatchNorm2d(out_feats*2)
         # self.conv2 = nn.Conv2d(out_feats*2, out_feats, kernel_size=3, padding=1, bias=False)
         # self.bn2 = nn.BatchNorm2d(out_feats)
         # half the channel
-        self.conv2 = nn.Conv2d(out_feats*2, out_feats, kernel_size=1, stride=1, bias=False)
+        self.conv2 = nn.Conv2d(out_feats*2, out_feats, kernel_size=1, stride=1)
         # self.bn2 = nn.BatchNorm2d(out_feats)
 
     def crop(self, feat):
@@ -67,36 +67,36 @@ class UNetUpBlock(nn.Module):
 class UNetV1(nn.Module):
     def __init__(self):
         super(UNetV1, self).__init__()
-        self.downblock1 = UNetBlock(3, 64)      # 64*1024*1536
+        self.downblock1 = UNetBlock(3, 32)      # 64*1024*1536
         self.pool1 = nn.MaxPool2d(2, stride=2)  # 64*512*768
 
-        self.downblock2 = UNetBlock(64, 128)    # 128*512*768
+        self.downblock2 = UNetBlock(32, 64)    # 128*512*768
         self.pool2 = nn.MaxPool2d(2, stride=2)  # 128*256*384
 
-        self.downblock3 = UNetBlock(128, 256)   # 256*256*384
+        self.downblock3 = UNetBlock(64, 128)   # 256*256*384
         self.pool3 = nn.MaxPool2d(2, 2)         # 256*128*192
 
-        self.downblock4 = UNetBlock(256, 512)   # 512*128*192
+        self.downblock4 = UNetBlock(128, 256)   # 512*128*192
         self.pool4 = nn.MaxPool2d(2, 2)         # 512*64*96
 
         # transition block
         self.transition = nn.Sequential(
-            nn.Conv2d(512, 1024, 1, bias=False),    # 1024*64*96
+            nn.Conv2d(256, 512, 1),    # 1024*64*96
             # nn.BatchNorm2d(1024),
             nn.ReLU(),
 
-            nn.Conv2d(1024, 512, 1, bias=False),    # 512*64*96
+            nn.Conv2d(512, 256, 1),    # 512*64*96
             # nn.BatchNorm2d(512),
             nn.ReLU()
         )
 
-        self.upblock1 = UNetUpBlock(1024, 256)       # 128*128*192
-        self.upblock2 = UNetUpBlock(512, 128)       # 128*256*384
-        self.upblock3 = UNetUpBlock(256, 64, 128)   # 64*128*128
-        self.upblock4 = UNetUpBlock(128, 32, 256)    # 32*256*256
+        self.upblock1 = UNetUpBlock(512, 128)        # 128*128*192
+        self.upblock2 = UNetUpBlock(256, 64)         # 128*256*384
+        self.upblock3 = UNetUpBlock(128, 32)          # 64*128*128
+        self.upblock4 = UNetUpBlock(64, 32)          # 32*256*256
 
         self.final_conv = nn.Sequential(
-            nn.Conv2d(32, 16, 3, padding=1),
+            nn.Conv2d(32, 16, stride=1, padding=1, kernel_size=3),
             # nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.Conv2d(16, 2, 1)
