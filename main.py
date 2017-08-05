@@ -13,27 +13,27 @@ import pandas as pd
 
 
 EPOCH = 50
-LEARNING_RATE = 1e-4
-L2_DECAY = 5e-4
+LEARNING_RATE = 5e-4
+L2_DECAY = 1e-4
 
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
-        lr = 0.001
+        lr = 0.005
     elif 10 < epoch <= 35:
-        lr = 0.0005
+        lr = 0.0009
     elif 35 < epoch <= 40:
-        lr = 0.0001
+        lr = 0.0005
     else:
-        lr = 0.00005
+        lr = 0.0001
     for param in optimizer.param_groups:
         param['lr'] = lr
 
 
 def train(net):
     # valid_loader = get_valid_dataloader(20)
-    # optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
-    optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
+    optimizer = Adam(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY)
+    # optimizer = SGD(params=net.parameters(), lr=LEARNING_RATE, weight_decay=L2_DECAY, momentum=0.9)
     criterion = nn.NLLLoss2d()
     if torch.cuda.is_available():
         net.cuda()
@@ -43,7 +43,7 @@ def train(net):
     best_val_loss = 0.0
     for e in range(EPOCH):
         # iterate over batches
-        lr_scheduler(optimizer, e)
+        # lr_scheduler(optimizer, e)
         net.train()
         for idx, (img, label) in enumerate(train_loader):
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
@@ -59,7 +59,7 @@ def train(net):
             optimizer.step()
 
             if idx % 10 == 0:
-                print('\r Training loss is', loss.data[0], flush=True, end='\n')
+                print('\r Training loss is', loss.data[0], flush=True, end='')
 
         if e % 1 == 0:
             # validate
@@ -67,7 +67,7 @@ def train(net):
             valid_loss = evaluate(valid_loader, net, criterion)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
-            print('Epoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
+            print('\nEpoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
             if best_val_loss < dice:
                 print('Save')
                 torch.save(net.state_dict(), 'models/unet-v3.pth')
