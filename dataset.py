@@ -123,8 +123,7 @@ def get_valid_dataloader(batch_size, H=512, W=512, preload=False, num_works=0):
             valid=True,
             H=H, W=W, preload=preload,
             transform=Compose(
-                [VerticalFlip(), HorizontalFlip(), Lambda(lambda x: toTensor(x)),
-                                                                 Normalize(mean=mean, std=std)]
+                [Lambda(lambda x: toTensor(x)), Normalize(mean=mean, std=std)]
             )
         )
 
