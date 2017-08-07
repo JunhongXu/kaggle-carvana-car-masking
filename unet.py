@@ -14,11 +14,11 @@ class UNetBlock(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        # x = self.bn2(x)
+        x = self.bn2(x)
         x = F.relu(x)
 
         x = self.conv2(x)
-        # x = self.bn2(x)
+        x = self.bn2(x)
         x = F.relu(x)
 
         return x
@@ -53,10 +53,10 @@ class UNetUpBlock(nn.Module):
         # feat = self.crop(feat)
         x = torch.cat((x, feat), 1)
         x = self.conv1(x)
-        # x = self.bn1(x)
+        x = self.bn1(x)
         x = F.relu(x)
         x = self.conv2(x)
-        # x = self.bn2(x)
+        x = self.bn2(x)
         x = F.relu(x)
         # x = self.conv3(x)
         # x = self.bn3(x)
