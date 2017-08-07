@@ -115,8 +115,8 @@ def do_submisssion():
 if __name__ == '__main__':
     net = UNetV1()
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(2, H=1024, W=1536), \
-                               get_train_dataloader(H=1024, W=1536, batch_size=1, preload=True, num_works=6)
+    valid_loader, train_loader = get_valid_dataloader(2, H=1024, W=1024), \
+                               get_train_dataloader(H=1024, W=1024, batch_size=1, preload=True, num_works=6)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():

@@ -81,11 +81,11 @@ class UNetV1(nn.Module):
 
         # transition block
         self.transition = nn.Sequential(
-            nn.Conv2d(512, 512, 3, padding=1, bias=False),    # 1024*64*96
+            nn.Conv2d(512, 1024, 3, padding=1, bias=False),    # 1024*64*96
             # nn.BatchNorm2d(1024),
             nn.ReLU(),
 
-            nn.Conv2d(512, 512, 1, bias=False),    # 512*64*96
+            nn.Conv2d(1024, 512, 1, bias=False),    # 512*64*96
             # nn.BatchNorm2d(512),
             nn.ReLU()
         )
