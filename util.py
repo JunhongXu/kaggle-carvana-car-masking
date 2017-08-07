@@ -23,7 +23,7 @@ def pred(dataloader, net):
 
         pred_labels[prev: prev+batch_size] = l
         prev = prev + batch_size
-        # print('Batch index', idx)
+        print('Batch index', idx)
     return pred_labels
 
 
@@ -67,7 +67,7 @@ def run_length_encode(mask):
 
 
 def save_mask(mask_imgs, model_name, names):
-    mask_imgs.astype(np.uint8)
+    # mask_imgs.astype(np.uint8)
     save_dir = os.path.join(CARANA_DIR, model_name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -79,7 +79,7 @@ def save_mask(mask_imgs, model_name, names):
 if __name__ == '__main__':
     import glob
     from scipy.misc import imread
-    imgnames = glob.glob(CARANA_DIR+"/unet/*.png")
+    imgnames = glob.glob(CARANA_DIR+"/unet-v2/*.png")
     testimnames = glob.glob(CARANA_DIR+'/test/*.jpg')
     for testim, name in zip(testimnames, imgnames):
         img = imread(name, 'L')
