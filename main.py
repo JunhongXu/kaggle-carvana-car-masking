@@ -109,14 +109,14 @@ def do_submisssion():
 
         rle.append(run_length_encode(cv2.resize(mask, (1918, 1280))))
     df = pd.DataFrame({'img': names, 'rle_mask': rle})
-    df.to_csv(CARANA_DIR+'/unet-v1-640*960.csv.gz', index=False, compression='gzip')
+    df.to_csv(CARANA_DIR+'/unet-v1-768*1152.csv.gz', index=False, compression='gzip')
 
 
 if __name__ == '__main__':
     net = UNetV1()
     # from scipy.misc import imshow
     valid_loader, train_loader = get_valid_dataloader(6, H=768, W=1152), \
-                               get_train_dataloader(H=768, W=1152, batch_size=2, preload=True, num_works=4)
+                               get_train_dataloader(H=768, W=1152, batch_size=4, preload=True, num_works=4)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():

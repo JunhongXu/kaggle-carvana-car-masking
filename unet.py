@@ -28,7 +28,7 @@ class UNetUpBlock(nn.Module):
     def __init__(self, in_feats, out_feats, out_size=None):
         super(UNetUpBlock, self).__init__()
         self.out_size = out_size
-        self.upsampling = nn.UpsamplingBilinear2d(scale_factor=2)
+        self.upsampling = nn.Upsample(scale_factor=2)
         self.conv1 = nn.Conv2d(in_feats, out_feats*2, kernel_size=3, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_feats*2)
         # self.conv2 = nn.Conv2d(out_feats*2, out_feats, kernel_size=3, padding=1, bias=False)
@@ -245,8 +245,8 @@ class UNetV3(nn.Module):    # small one with bn
 
 if __name__ == '__main__':
     loss = nn.NLLLoss2d()
-    _x = Variable(torch.randn(1, 3, 1024, int(1024*1.5)))
-    target = Variable(torch.LongTensor(1, 1024, int(1024*1.5)).random_(0, 1))
+    _x = Variable(torch.randn(1, 3, 256, 256))
+    target = Variable(torch.LongTensor(1, 256, 256).random_(0, 1))
     net = UNetV1()
     logits, probs = net(_x)
     print(loss(probs, target))
