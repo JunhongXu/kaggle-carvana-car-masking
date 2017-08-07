@@ -55,11 +55,15 @@ def train(net):
             logits, log_logits = net(img)
             loss = criterion(log_logits, label)
             # fresh gradients
-            optimizer.zero_grad()
+            if idx == 0:
+                optimizer.zero_grad()
             # do backward pass
             loss.backward()
-            # update
-            optimizer.step()
+
+            if idx % 8 == 0:
+                # update
+                optimizer.step()
+                optimizer.zero_grad()
 
             if idx % 10 == 0:
                 print('\r {}: Training loss is'.format(num/total), loss.data[0], flush=True, end='')
