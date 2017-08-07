@@ -23,7 +23,7 @@ def pred(dataloader, net):
 
         pred_labels[prev: prev+batch_size] = l
         prev = prev + batch_size
-        print('Batch index', idx)
+        # print('Batch index', idx)
     return pred_labels
 
 

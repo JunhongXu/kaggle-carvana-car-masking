@@ -14,7 +14,7 @@ import pandas as pd
 
 EPOCH = 60
 LEARNING_RATE = 5e-4
-L2_DECAY = 5e-4
+L2_DECAY = 7e-4
 
 
 def lr_scheduler(optimizer, epoch):
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     net = UNetV1()
     # from scipy.misc import imshow
     valid_loader, train_loader = get_valid_dataloader(6, H=768, W=1152), \
-                               get_train_dataloader(H=768, W=1152, batch_size=4, preload=True, num_works=4)
+                               get_train_dataloader(H=768, W=1152, batch_size=2, preload=True, num_works=6)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
