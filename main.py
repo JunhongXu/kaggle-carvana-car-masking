@@ -72,7 +72,7 @@ def train(net):
             print('\nEpoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
             if best_val_loss < dice:
                 print('Save')
-                torch.save(net.state_dict(), 'models/unet-v1-1024*1536.pth')
+                torch.save(net.state_dict(), 'models/unet-v1-1024*1024.pth')
                 best_val_loss = dice
 
 
