@@ -72,7 +72,7 @@ def train(net):
             print('\nEpoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
             if best_val_loss < dice:
                 print('Save')
-                torch.save(net.state_dict(), 'models/unet-v1-1024*1024.pth')
+                torch.save(net.state_dict(), 'models/unet512pth')
                 best_val_loss = dice
 
 
@@ -115,8 +115,8 @@ def do_submisssion():
 if __name__ == '__main__':
     net = UNet512()
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(batch_size=16, H=512, W=512), \
-                               get_train_dataloader(H=512, W=512, batch_size=16, preload=True, num_works=6)
+    valid_loader, train_loader = get_valid_dataloader(batch_size=16, H=1024, W=1024), \
+                               get_train_dataloader(H=512, W=512, batch_size=10, preload=True, num_works=6)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():

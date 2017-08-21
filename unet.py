@@ -131,10 +131,13 @@ class UNet512(nn.Module):
         self.upblock3 = UNetUpBlockBn(256, 64)          # 64*128*128
         self.upblock4 = UNetUpBlockBn(128, 32)         # 32*256*256
         self.upblock5 = UNetUpBlockBn(64, 32)       # 16*512*512
+        self.upblock6 = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(in_channels=32, out_channels=16, padding=0, kernel_size=1, bias=False),
+            nn.BatchNorm2d(16)
+        )
 
         self.final_conv = nn.Sequential(
-            nn.Conv2d(32, 16, stride=1, padding=1, kernel_size=3, bias=False),
-            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.Conv2d(16, 2, 1)
         )
@@ -156,7 +159,8 @@ class UNet512(nn.Module):
         up3 = self.upblock3(up2, feat3)
         up4 = self.upblock4(up3, feat2)
         up5 = self.upblock5(up4, feat1)
-        logits = self.final_conv(up5)
+        up6 = self.upblock6(up5)
+        logits = self.final_conv(up6)
         probs = F.log_softmax(logits)
         return logits, probs
 
