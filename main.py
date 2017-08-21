@@ -4,7 +4,7 @@ from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
 from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
-from unet import UNetV1, UNetV2, UNetV3
+from unet import UNet512, UNetV2, UNetV3
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
 import numpy as np
 import cv2
@@ -113,10 +113,10 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNetV1()
+    net = UNet512()
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(2, H=1024, W=1024), \
-                               get_train_dataloader(H=1024, W=1024, batch_size=1, preload=True, num_works=6)
+    valid_loader, train_loader = get_valid_dataloader(batch_size=16, H=512, W=512), \
+                               get_train_dataloader(H=512, W=512, batch_size=16, preload=True, num_works=6)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
