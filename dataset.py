@@ -14,9 +14,12 @@ std = [0.24479961336692371, 0.24790616166162652, 0.24398260796692428]
 
 
 class CarvanaDataSet(Dataset):
-    def __init__(self, H=256, W=int(256*1.5), valid=False, transform=None, test=False, preload=False):
+    def __init__(self, H=256, W=int(256*1.5), out_h=1024, out_w=1024, valid=False, transform=None,
+                 test=False, preload=False):
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
+        self.out_h = out_h
+        self.out_w = out_w
         self.transform = transform
         self.test = test
         self.preload = preload
@@ -42,7 +45,7 @@ class CarvanaDataSet(Dataset):
                 for idx, img_name in enumerate(self.img_names):
                     self.imgs[idx] = cv2.resize(cv2.imread(img_name), (W, H))
                 for idx, label_name in enumerate(self.label_names):
-                    l = Image.open(label_name).resize((W, H))
+                    l = Image.open(label_name).resize((self.out_w, self.out_h))
                     l = np.array(l)
                     self.labels[idx] = l
         else:
@@ -68,7 +71,7 @@ class CarvanaDataSet(Dataset):
         if not self.test:
             if self.preload:
                 img = cv2.resize(cv2.imread(self.img_names[index]), (self.W, self.H))
-                label = Image.open(self.label_names[index]).resize((self.W, self.H))
+                label = Image.open(self.label_names[index]).resize((self.out_w, self.out_h))
                 label = np.array(label)
             else:
                 img = self.imgs[index]
