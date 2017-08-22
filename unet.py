@@ -139,7 +139,7 @@ class UNet512(nn.Module):
 
         self.final_conv = nn.Sequential(
             nn.ReLU(),
-            nn.Conv2d(16, 2, 1)
+            nn.Conv2d(16, 1, 1)
         )
 
     def forward(self, x):
@@ -161,7 +161,7 @@ class UNet512(nn.Module):
         up5 = self.upblock5(up4, feat1)
         up6 = self.upblock6(up5)
         logits = self.final_conv(up6)
-        probs = F.log_softmax(logits)
+        probs = F.sigmoid(logits)
         return logits, probs
 
 
