@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
-from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
+from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
@@ -31,49 +31,54 @@ def lr_scheduler(optimizer, epoch):
         param['lr'] = lr
 
 
-def train(net):
-    optimizer = SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
+def train():
     criterion = BCELoss2d()
-    if torch.cuda.is_available():
+
+    for i in range(5):
+        net = UNet_double_1024_5((3, 512, 512), 1)
+        net = nn.DataParallel(net)
         net.cuda()
+        optimizer = SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
 
+        train_loader = get_train_dataloader('train-%s' % i, num_works=6, mean=mean[i], std=std[i], batch_size=10)
+        valid_loader = get_valid_dataloader(batch_size=16, split='valid-%s' % i, mean=mean[i], std=std[i])
+        print('Training on fold %s' % i)
+        # train
+        best_val_loss = 0.0
+        for e in range(EPOCH):
+            # iterate over batches
+            lr_scheduler(optimizer, e)
+            num = 0
+            total = len(train_loader.dataset.img_names)
+            for idx, (img, label) in enumerate(train_loader):
+                net.train()
+                num += img.size(0)
+                img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
+                # label = label.long()
+                label = Variable(label.cuda()) if torch.cuda.is_available() else Variable(label)
+                out, logits = net(img)
+                # out = out.Long()
+                loss = criterion(out, label)
+                # fresh gradients
+                optimizer.zero_grad()
+                # do backward pass
+                loss.backward()
+                # update
+                optimizer.step()
 
-    # train
-    best_val_loss = 0.0
-    for e in range(EPOCH):
-        # iterate over batches
-        lr_scheduler(optimizer, e)
-        num = 0
-        total = len(train_loader.dataset.img_names)
-        for idx, (img, label) in enumerate(train_loader):
-            net.train()
-            num += img.size(0)
-            img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
-            # label = label.long()
-            label = Variable(label.cuda()) if torch.cuda.is_available() else Variable(label)
-            out, logits = net(img)
-            # out = out.Long()
-            loss = criterion(out, label)
-            # fresh gradients
-            optimizer.zero_grad()
-            # do backward pass
-            loss.backward()
-            # update
-            optimizer.step()
-
-            if idx % 10 == 0:
-                print('\r {}: Training loss is'.format(num/total), loss.data[0], flush=True, end='')
-        if e % 1 == 0:
-            # validate
-            pred_labels = pred(valid_loader, net)
-            valid_loss = evaluate(valid_loader, net, criterion)
-            # print(pred_labels)
-            dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
-            print('\nEpoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
-            if best_val_loss < dice:
-                print('Save')
-                torch.save(net.state_dict(), 'models/unet1024.pth')
-                best_val_loss = dice
+                if idx % 10 == 0:
+                    print('\r {}: Training loss is'.format(num/total), loss.data[0], flush=True, end='')
+            if e % 1 == 0:
+                # validate
+                pred_labels = pred(valid_loader, net)
+                valid_loss = evaluate(valid_loader, net, criterion)
+                # print(pred_labels)
+                dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
+                print('\nEpoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
+                if best_val_loss < dice:
+                    print('Save')
+                    torch.save(net.state_dict(), 'models/unet1024_%s.pth' % format(i))
+                    best_val_loss = dice
 
 
 
@@ -113,13 +118,8 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNet_double_1024_5((3, 512, 512), 1)
-    net = nn.DataParallel(net)
-    net.load_state_dict(torch.load('models/unet1024.pth'))
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(split='valid-0', batch_size=16, H=512, W=512), \
-                               get_train_dataloader(split='train-0', H=512, W=512, batch_size=10, preload=True, num_works=6)
-    train(net)
+    train()
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #    net.cuda()

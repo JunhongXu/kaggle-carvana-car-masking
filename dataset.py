@@ -7,12 +7,23 @@ import cv2
 import torch
 import random
 import time
-from inspect import signature
 
 
 CARANA_DIR = '/media/jxu7/BACK-UP/Data/carvana'
-mean = [0.68404490794406181, 0.69086280353012897, 0.69792341323303619]
-std = [0.24479961336692371, 0.24790616166162652, 0.24398260796692428]
+mean = [
+    [0.68581734522164306, 0.69262389716232575, 0.69997227996210665],
+    [0.68183082412592577, 0.68885076944875112, 0.6958291753151572],
+    [0.68495254107142345, 0.69148648761856302, 0.69879201541420988],
+    [0.68118192009717171, 0.68849969377796516, 0.69672117430285363],
+    [0.68590284269603696, 0.69285547294676564, 0.69971214283887229]
+]
+std = [
+    [0.2451555280892101, 0.24848201503013956, 0.24391495327711973],
+    [0.24551160069417943, 0.24862941368977742, 0.24465972522212173],
+    [0.24367499103188969, 0.24663030373528805, 0.24287543973730677],
+    [0.24534487485378531, 0.24847334712403824, 0.24370864369316059],
+    [0.24506112008620376, 0.24816712564882465, 0.24457061619821843]
+]
 
 
 class CarvanaDataSet(Dataset):
@@ -36,7 +47,7 @@ class CarvanaDataSet(Dataset):
         with open(CARANA_DIR+'/split/'+split) as f:
             self.img_names = f.readlines()
         self.img_names = [name.strip('\n') for name in self.img_names]
-        print('Number of samples %s'.format(len(self.img_names)))
+        print('Number of samples {}'.format(len(self.img_names)))
 
         if preload:
             self.imgs = np.empty((len(self.img_names), H, W, 3))
@@ -61,8 +72,8 @@ class CarvanaDataSet(Dataset):
         mean = []
         std = []
         for i in range(0, 3):
-            mean.append(np.mean(self.imgs[:, :, :, i]))
-            std.append(np.std(self.imgs[:, :, :, i]))
+            mean.append(np.mean(self.imgs[:, :, :, i]/255.))
+            std.append(np.std(self.imgs[:, :, :, i]/255.))
         return mean, std
 
     def __getitem__(self, index):
@@ -125,20 +136,20 @@ class VerticalFlip(object):
         return img, l
 
 
-def get_valid_dataloader(batch_size, split, H=512, W=512, preload=False, num_works=0):
+def get_valid_dataloader(batch_size, split, H=512, W=512, num_works=0, mean=mean, std=std):
     return DataLoader(batch_size=batch_size, num_workers=num_works,
         dataset=CarvanaDataSet(
             split, test=False, H=H, W=W, preload=True,
-            transform=None
+            transform=None, std=std, mean=mean
         )
 
 
     )
 
 
-def get_train_dataloader(split, H=512, W=512, batch_size=64, preload=False, num_works=0):
+def get_train_dataloader(split, mean, std, H=512, W=512, batch_size=64, num_works=6):
     return DataLoader(batch_size=batch_size, shuffle=True, num_workers=num_works,
-                      dataset=CarvanaDataSet(split, preload=False, H=H, W=W, test=False,
+                      dataset=CarvanaDataSet(split, preload=False, H=H, W=W, test=False, mean=mean, std=std,
                                              transform=Compose([VerticalFlip(), HorizontalFlip()])))
 
 
@@ -149,10 +160,16 @@ def get_test_dataloader(H=512, W=512, batch_size=64):
 
 
 if __name__ == '__main__':
-    loader = get_valid_dataloader(1, H=640, W=960, preload=True, num_works=3)
-    for data in loader:
-        i, l = data
-        cv2.imshow('f', i.numpy()[0].transpose(1, 2, 0))
-        cv2.imshow('l', l.numpy()[0]*100)
-        print(l[l==1].sum())
-        cv2.waitKey()
+    # loader = get_valid_dataloader(1, H=640, W=960, preload=True, num_works=3)
+    # for data in loader:
+    #     i, l = data
+    #     cv2.imshow('f', i.numpy()[0].transpose(1, 2, 0))
+    #     cv2.imshow('l', l.numpy()[0]*100)
+    #     print(l[l==1].sum())
+    #     cv2.waitKey()
+    # calculate mean and std for each fold
+    for i in range(5):
+        dataset = CarvanaDataSet('train-{}'.format(i), preload=True, test=False)
+        mean, std = dataset.mean_std()
+        print('Fold {}--mean: {}, std: {}'.format(i, mean, std))
+        del dataset
