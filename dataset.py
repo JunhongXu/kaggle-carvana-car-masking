@@ -28,7 +28,7 @@ std = [
 
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None,
-                 test=False, preload=False, mean=None, std=None):
+                 test=False, preload=False, mean=None, std=None, start=None, end=None):
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
         self.out_h = out_h
@@ -41,13 +41,14 @@ class CarvanaDataSet(Dataset):
         self.img_names = []
         self.normalize = Normalize(mean=mean, std=std) if mean is not None and std is not None else None
         t = time.time()
-        print('[!]Loading!' + CARANA_DIR + '/' + split)
+        print('[!]Loading!' + CARANA_DIR + '/' + split) if split is not None else print('Testing')
 
         # load sample index index
-        with open(CARANA_DIR+'/split/'+split) as f:
-            self.img_names = f.readlines()
-        self.img_names = [name.strip('\n') for name in self.img_names]
-        print('Number of samples {}'.format(len(self.img_names)))
+        if split is not None:
+            with open(CARANA_DIR+'/split/'+split) as f:
+                self.img_names = f.readlines()
+            self.img_names = [name.strip('\n') for name in self.img_names]
+
 
         if preload:
             self.imgs = np.empty((len(self.img_names), H, W, 3))
@@ -64,7 +65,9 @@ class CarvanaDataSet(Dataset):
 
         if test:
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')
-
+            if start is not None and end is not None:
+                self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')[start:end]
+        print('Number of samples {}'.format(len(self.img_names)))
         print('Total loading time %.2f' % (time.time() - t))
         print('Done Loading!')
 
@@ -79,8 +82,9 @@ class CarvanaDataSet(Dataset):
     def __getitem__(self, index):
         if self.test:
             img = cv2.resize(cv2.imread(self.img_names[index]), (self.W, self.H))
+            img = img/255.
             if self.transform is not None:
-                img = self.transform(img/255.)
+                img = self.transform(img)
             return img, 0
         else:
             if self.preload:
@@ -153,10 +157,11 @@ def get_train_dataloader(split, mean, std, H=512, W=512, batch_size=64, num_work
                                              transform=Compose([VerticalFlip(), HorizontalFlip()])))
 
 
-def get_test_dataloader(H=512, W=512, batch_size=64):
+def get_test_dataloader(std, mean, H=512, W=512, batch_size=64, start=None, end=None):
     return DataLoader(batch_size=batch_size, num_workers=4,
-                      dataset=CarvanaDataSet(H=H, W=W, transform=Compose([Lambda(lambda x: toTensor(x)),
-                                                                Normalize(mean=mean, std=std)]), test=True))
+                      dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std, mean=mean, test=True,
+                                             transform=Compose([Lambda(lambda x: toTensor(x)),
+                                                                Normalize(mean=mean, std=std)])))
 
 
 if __name__ == '__main__':

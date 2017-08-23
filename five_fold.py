@@ -11,6 +11,7 @@ from myunet import BCELoss2d
 import cv2
 from scipy.misc import imread
 import pandas as pd
+import numpy as np
 
 
 EPOCH = 60
@@ -81,23 +82,46 @@ def train():
                     best_val_loss = dice
 
 
-
-
-def test(net):
+def test():
     """
     save the predicted mask image to .jpg file
     save the predicted mask prediction to submission file using rle_encode
     """
-    if torch.cuda.is_available():
-        net.cuda()
-    # net = nn.DataParallel(net)
-    # net.load_state_dict(torch.load('models/unet.pth'))
-
-    pred_labels = pred(test_loader, net)
-    names = glob.glob(CARANA_DIR+'/test/*.jpg')
-    names = [name.split('/')[-1][:-4] for name in names]
-    # save mask
-    save_mask(mask_imgs=pred_labels, model_name='unet-v1-768*1152', names=names)
+    for i in range(5):
+        for (start, end) in [(0, 29999), (30000, 69999), (70000, 99999), (100000, 100064)]:
+            test_loader = get_test_dataloader(start=start, end=end, batch_size=16, H=512, W=512, std=std[i], mean=mean[i])
+            net = UNet_double_1024_5((3, 512, 512), 1)
+            net = nn.DataParallel(net)
+            net.cuda()
+            net.load_state_dict(torch.load('models/unet1024_{}.pth'.format(i)))
+            pred_label = pred(test_loader, net)
+        # for (start, end) in [(0, 10000), (10001, 20000), (20001, 35000), (35001, 50000), (50001, 65000), (65001, 80000),
+        #                      (80001, 95000), (95001, 100064)]:
+        #     pred_labels_sum = np.empty((end-start, 1024, 1024), dtype=np.uint8)
+        #     for i in range(5):
+        #         # load nets
+        #         print(i)
+        #         test_loader = get_test_dataloader(start=start, end=end, batch_size=8, H=512, W=512, std=std[i], mean=mean[i])
+        #         net = UNet_double_1024_5((3, 512, 512), 1)
+        #         net = nn.DataParallel(net)
+        #         net.cuda()
+        #         net.load_state_dict(torch.load('models/unet1024_{}.pth'.format(i)))
+        #         pred_label = pred(test_loader, net)
+        #         pred_labels_sum = pred_labels_sum + pred_label
+        #         del pred_label
+        #
+        #     pred_labels_sum = (pred_labels_sum > 2).astype(np.uint8)
+        #     # if torch.cuda.is_available():
+        #     #     net.cuda()
+        #     # # net = nn.DataParallel(net)
+        #     # # net.load_state_dict(torch.load('models/unet.pth'))
+        #     #
+        #     # pred_labels = pred(test_loader, net)
+            names = glob.glob(CARANA_DIR+'/test/*.jpg')[start:end]
+            names = [name.split('/')[-1][:-4] for name in names]
+            # # save mask
+            save_mask(mask_imgs=pred_label, model_name='unet_1024_{}'.format(i), names=names)
+            del pred_label
 
 
 def do_submisssion():
@@ -118,27 +142,6 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    # from scipy.misc import imshow
-    train()
-    # valid_loader = get_valid_dataloader(64)
-    # if torch.cuda.is_available():
-    #    net.cuda()
-    # net = nn.DataParallel(net)
-    # net.load_state_dict(torch.load('models/unet-v1-640*960.pth'))
-
-
-    # print(evaluate(valid_loader, net, nn.NLLLoss2d()))
-    # pred_labels = pred(valid_loader, net)
-
-    # for l in pred_labels:
-        # print(l.sum())
-        # print(l)
-        # imshow( l)
-    # names = glob.glob(CARANA_DIR+'/test/*.jpg')
-    # names = [name.split('/')[-1][:-4] for name in names]
-    # save mask
-    # test_loader = get_test_dataloader(batch_size=8, H=640, W=960)
-    # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
-
-    # test(net)
-    # do_submisssion()
+    # train()
+    test()
+    do_submisssion()

@@ -24,7 +24,7 @@ def pred(dataloader, net):
         l = np.squeeze(l)
         pred_labels[prev: prev+batch_size] = l
         prev = prev + batch_size
-        # print('Batch index', idx)
+        print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
     return pred_labels
 
 
@@ -70,6 +70,7 @@ def run_length_encode(mask):
 def save_mask(mask_imgs, model_name, names):
     # mask_imgs.astype(np.uint8)
     save_dir = os.path.join(CARANA_DIR, model_name)
+    print('Save images')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     for name, mask_img in zip(names, mask_imgs):
@@ -99,21 +100,22 @@ def split():
                 f.write('\n')
 
 if __name__ == '__main__':
-   #  import glob
-   #  from scipy.misc import imread
-   #  imgnames = glob.glob(CARANA_DIR+"/unet-v2/*.png")
-   #  testimnames = glob.glob(CARANA_DIR+'/test/*.jpg')
-   #  for testim, name in zip(testimnames, imgnames):
-   #      img = imread(name, 'L')
-   #      img = cv2.resize(img, (384, 256))
-   #
-   #      test = imread(testim)
-   #      test = cv2.resize(test, (384, 256))
-   #  # save_mask(img, 'unte', ['1', '2'])
-   #
-   # #  for img in glob.glob('unte/*.png'):
-   #
-   #      cv2.imshow('f', img)
-   #      cv2.imshow('co', test)
-   #      cv2.waitKey()
-   split()
+    import glob
+    from scipy.misc import imread
+    imgnames = glob.glob(CARANA_DIR+"/unet_1024_0/*.png")
+    print(imgnames)
+    testimnames = glob.glob(CARANA_DIR+'/test/*.jpg')
+    for testim, name in zip(testimnames, imgnames):
+        img = imread(name, 'L')
+        img = cv2.resize(img, (384, 256))
+
+        test = imread(testim)
+        test = cv2.resize(test, (384, 256))
+    # save_mask(img, 'unte', ['1', '2'])
+
+   #  for img in glob.glob('unte/*.png'):
+
+        cv2.imshow('f', img)
+        cv2.imshow('co', test)
+        cv2.waitKey()
+   # split()
