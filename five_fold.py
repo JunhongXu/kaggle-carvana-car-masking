@@ -88,7 +88,7 @@ def test():
     save the predicted mask prediction to submission file using rle_encode
     """
     for i in range(5):
-        for (start, end) in [(0, 29999), (30000, 69999), (70000, 99999), (100000, 100064)]:
+        for (start, end) in [(0, 30000), (30000, 60000), (60000, 90000), (90000, 100064)]:
             test_loader = get_test_dataloader(start=start, end=end, batch_size=16, H=512, W=512, std=std[i], mean=mean[i])
             net = UNet_double_1024_5((3, 512, 512), 1)
             net = nn.DataParallel(net)
@@ -125,23 +125,29 @@ def test():
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'/unet-v1-768*1152/*.png')
+    from scipy.misc import imread, imshow
+    mask_names = []
+    for i in range(0, 5):
+        mask_name = glob.glob(CARANA_DIR+'/unet_1024_{}/*.png'.format(i))
+        mask_names.append(mask_name)
+
     names = []
     rle = []
-    # df = pd.DataFrame({'img'})
-    for index, test_name in enumerate(mask_names):
-        name = test_name.split('/')[-1][:-4]
-        if index % 1000 ==0:
-            print(name+'.jpg', index)
-        names.append(name+'.jpg')
-        mask = imread(test_name)
+    for img_idx in range(len(mask_name)):
+        test_name = mask_name[img_idx].split('/')[-1][:-4]
+        names.append(test_name+'.jpg')
+        mask = np.zeros((1280, 1918))
+        for index in range(5):
+            mask += cv2.resize(imread(mask_names[index][img_idx]), (1918, 1280))
 
-        rle.append(run_length_encode(cv2.resize(mask, (1918, 1280))))
+        mask = (mask>2).astype(np.uint8)
+        print('\rProgress %.5f' % (img_idx/len(mask_name)), end='', flush=True)
+        rle.append(run_length_encode(mask))
     df = pd.DataFrame({'img': names, 'rle_mask': rle})
-    df.to_csv(CARANA_DIR+'/unet-v1-768*1152.csv.gz', index=False, compression='gzip')
+    df.to_csv(CARANA_DIR+'/unet_1024_5fold.csv.gz', index=False, compression='gzip')
 
 
 if __name__ == '__main__':
     # train()
-    test()
+    # test()
     do_submisssion()

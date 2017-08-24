@@ -78,44 +78,37 @@ def save_mask(mask_imgs, model_name, names):
         cv2.imwrite(os.path.join(save_dir, '{}.png'.format(name)), mask_img)
 
 
-def split():
+def split(num=None):
     path = os.path.join(CARANA_DIR, 'split')
+    img_names = sorted(glob.glob(CARANA_DIR+'/train/train/*.jpg'))
     if not os.path.exists(path):
         os.makedirs(path)
+    if num is not None:
+        with open(os.path.join(path, 'train-{}'.format(num)), 'w') as f:
+            for i in range(num):
+                f.write(str(img_names[i]).split('/')[-1][:-4])
+                f.write('\n')
+        if 5088 - num != 0:
+            with open(os.path.join(path, 'valid-{}'.format(5088 - num)), 'w') as f:
+                for i in range(5088-num):
+                    f.write(str(img_names[i]).split('/')[-1][:-4])
+                    f.write('\n')
+    else:
+        # read image names
 
-    # read image names
-    img_names = sorted(glob.glob(CARANA_DIR+'/train/train/*.jpg'))
-    print(img_names)
-    # split
-    kfold = KFold(n_splits=5)
-    fake_x = np.random.randn(5088, 1)
-    for index, (train_index, test_index) in enumerate(kfold.split(fake_x)):
-        with open(os.path.join(path, 'train-{}'.format(index)), 'w') as f:
-            for t_idx in train_index:
-                f.write(str(img_names[t_idx]).split('/')[-1][:-4])
-                f.write('\n')
-        with open(os.path.join(path, 'valid-{}'.format(index)), 'w') as f:
-            for v_idx in test_index:
-                f.write(str(img_names[v_idx]).split('/')[-1][:-4])
-                f.write('\n')
+        print(img_names)
+        # split
+        kfold = KFold(n_splits=5)
+        fake_x = np.random.randn(5088, 1)
+        for index, (train_index, test_index) in enumerate(kfold.split(fake_x)):
+            with open(os.path.join(path, 'train-{}'.format(index)), 'w') as f:
+                for t_idx in train_index:
+                    f.write(str(img_names[t_idx]).split('/')[-1][:-4])
+                    f.write('\n')
+            with open(os.path.join(path, 'valid-{}'.format(index)), 'w') as f:
+                for v_idx in test_index:
+                    f.write(str(img_names[v_idx]).split('/')[-1][:-4])
+                    f.write('\n')
 
 if __name__ == '__main__':
-    import glob
-    from scipy.misc import imread
-    imgnames = glob.glob(CARANA_DIR+"/unet_1024_0/*.png")
-    print(imgnames)
-    testimnames = glob.glob(CARANA_DIR+'/test/*.jpg')
-    for testim, name in zip(testimnames, imgnames):
-        img = imread(name, 'L')
-        img = cv2.resize(img, (384, 256))
-
-        test = imread(testim)
-        test = cv2.resize(test, (384, 256))
-    # save_mask(img, 'unte', ['1', '2'])
-
-   #  for img in glob.glob('unte/*.png'):
-
-        cv2.imshow('f', img)
-        cv2.imshow('co', test)
-        cv2.waitKey()
-   # split()
+   split(5000)

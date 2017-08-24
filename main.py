@@ -32,7 +32,7 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
-    optimizer = SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
+    optimizer = SGD(net.parameters(), lr=0.0005, momentum=0.9, weight_decay=0.0005)  ###0.0005
     criterion = BCELoss2d()
     if torch.cuda.is_available():
         net.cuda()
@@ -72,7 +72,7 @@ def train(net):
             print('\nEpoch {}: validation loss-{}, dice coeff-{}, best loss-{}'.format(e, valid_loss, dice, best_val_loss))
             if best_val_loss < dice:
                 print('Save')
-                torch.save(net.state_dict(), 'models/unet1024.pth')
+                torch.save(net.state_dict(), 'models/unet1024_5000.pth')
                 best_val_loss = dice
 
 
@@ -87,16 +87,19 @@ def test(net):
         net.cuda()
     # net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet.pth'))
-
-    pred_labels = pred(test_loader, net)
-    names = glob.glob(CARANA_DIR+'/test/*.jpg')
-    names = [name.split('/')[-1][:-4] for name in names]
-    # save mask
-    save_mask(mask_imgs=pred_labels, model_name='unet-v1-768*1152', names=names)
+    for (s, e) in [(60000, 90000), (90000, 100064)]:
+        test_loader = get_test_dataloader(batch_size=32, H=512, W=512, start=s, end=e,
+                                      mean=[0.68393705585379416, 0.690863245943936, 0.69820535867719524],
+                                      std=[0.24495887822375081, 0.24808445495662299, 0.24395232561506316])
+        pred_labels = pred(test_loader, net)
+        names = glob.glob(CARANA_DIR+'/test/*.jpg')[s:e]
+        names = [name.split('/')[-1][:-4] for name in names]
+        # save mask
+        save_mask(mask_imgs=pred_labels, model_name='unet1024_5000', names=names)
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'/unet-v1-768*1152/*.png')
+    mask_names = glob.glob(CARANA_DIR+'/unet1024_1_full/*.png')
     names = []
     rle = []
     # df = pd.DataFrame({'img'})
@@ -109,16 +112,20 @@ def do_submisssion():
 
         rle.append(run_length_encode(cv2.resize(mask, (1918, 1280))))
     df = pd.DataFrame({'img': names, 'rle_mask': rle})
-    df.to_csv(CARANA_DIR+'/unet-v1-768*1152.csv.gz', index=False, compression='gzip')
+    df.to_csv(CARANA_DIR+'/unet1024_1_full.csv.gz', index=False, compression='gzip')
 
 
 if __name__ == '__main__':
     net = UNet_double_1024_5((3, 512, 512), 1)
     net = nn.DataParallel(net)
-    net.load_state_dict(torch.load('models/unet1024.pth'))
+    # net.load_state_dict(torch.load('models/unet1024_1.pth'))
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(split='valid-0', batch_size=16, H=512, W=512), \
-                               get_train_dataloader(split='train-0', H=512, W=512, batch_size=10, preload=True, num_works=6)
+    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=8, H=640, W=960, out_h=1280, out_w=1920,
+                                                       mean=None,
+                                                     std=None), \
+                                get_train_dataloader(split='train-5000', H=640, W=960, batch_size=6, num_works=6,out_h=1280, out_w=1920,
+                                                     mean=None,
+                                                     std=None)
     train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
@@ -137,8 +144,8 @@ if __name__ == '__main__':
     # names = glob.glob(CARANA_DIR+'/test/*.jpg')
     # names = [name.split('/')[-1][:-4] for name in names]
     # save mask
-    # test_loader = get_test_dataloader(batch_size=8, H=640, W=960)
+
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
 
-    # test(net)
-    # do_submisssion()
+    test(net)
+    do_submisssion()

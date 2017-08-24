@@ -15,14 +15,18 @@ mean = [
     [0.68183082412592577, 0.68885076944875112, 0.6958291753151572],
     [0.68495254107142345, 0.69148648761856302, 0.69879201541420988],
     [0.68118192009717171, 0.68849969377796516, 0.69672117430285363],
-    [0.68590284269603696, 0.69285547294676564, 0.69971214283887229]
+    [0.68590284269603696, 0.69285547294676564, 0.69971214283887229],
+    [0.68393705585379416, 0.690863245943936, 0.69820535867719524], # all
+    []  # 5000
 ]
 std = [
     [0.2451555280892101, 0.24848201503013956, 0.24391495327711973],
     [0.24551160069417943, 0.24862941368977742, 0.24465972522212173],
     [0.24367499103188969, 0.24663030373528805, 0.24287543973730677],
     [0.24534487485378531, 0.24847334712403824, 0.24370864369316059],
-    [0.24506112008620376, 0.24816712564882465, 0.24457061619821843]
+    [0.24506112008620376, 0.24816712564882465, 0.24457061619821843],
+    [0.24495887822375081, 0.24808445495662299, 0.24395232561506316], # all
+    []  # 5000
 ]
 
 
@@ -85,6 +89,9 @@ class CarvanaDataSet(Dataset):
             img = img/255.
             if self.transform is not None:
                 img = self.transform(img)
+            img = toTensor(img)
+            if self.normalize is not None:
+                img = self.normalize(img)
             return img, 0
         else:
             if self.preload:
@@ -140,10 +147,10 @@ class VerticalFlip(object):
         return img, l
 
 
-def get_valid_dataloader(batch_size, split, H=512, W=512, num_works=0, mean=mean, std=std):
+def get_valid_dataloader(batch_size, split, H=512, W=512, out_h=1280, out_w=1918, num_works=0, mean=mean, std=std):
     return DataLoader(batch_size=batch_size, num_workers=num_works,
         dataset=CarvanaDataSet(
-            split, test=False, H=H, W=W, preload=True,
+            split, test=False, H=H, W=W, preload=True, out_h=out_h, out_w=out_w,
             transform=None, std=std, mean=mean
         )
 
@@ -151,17 +158,17 @@ def get_valid_dataloader(batch_size, split, H=512, W=512, num_works=0, mean=mean
     )
 
 
-def get_train_dataloader(split, mean, std, H=512, W=512, batch_size=64, num_works=6):
+def get_train_dataloader(split, mean, std, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, num_works=6):
     return DataLoader(batch_size=batch_size, shuffle=True, num_workers=num_works,
-                      dataset=CarvanaDataSet(split, preload=False, H=H, W=W, test=False, mean=mean, std=std,
+                      dataset=CarvanaDataSet(split, preload=False, H=H, W=W, out_w=out_w, out_h=out_h,
+                                             test=False, mean=mean, std=std,
                                              transform=Compose([VerticalFlip(), HorizontalFlip()])))
 
 
-def get_test_dataloader(std, mean, H=512, W=512, batch_size=64, start=None, end=None):
+def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None):
     return DataLoader(batch_size=batch_size, num_workers=4,
                       dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std, mean=mean, test=True,
-                                             transform=Compose([Lambda(lambda x: toTensor(x)),
-                                                                Normalize(mean=mean, std=std)])))
+                                            ))
 
 
 if __name__ == '__main__':
@@ -173,8 +180,10 @@ if __name__ == '__main__':
     #     print(l[l==1].sum())
     #     cv2.waitKey()
     # calculate mean and std for each fold
-    for i in range(5):
-        dataset = CarvanaDataSet('train-{}'.format(i), preload=True, test=False)
-        mean, std = dataset.mean_std()
-        print('Fold {}--mean: {}, std: {}'.format(i, mean, std))
-        del dataset
+    # for i in range(5):
+    #     dataset = CarvanaDataSet('train-{}'.format(i), preload=True, test=False)
+    #     mean, std = dataset.mean_std()
+    #     print('Fold {}--mean: {}, std: {}'.format(i, mean, std))
+     #    del dataset
+    dataset = CarvanaDataSet('train-5000', H=640, W=960, out_h=1280, out_w=1918, preload=True, test=False)
+    print(dataset.mean_std())
