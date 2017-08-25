@@ -32,7 +32,7 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
-    optimizer = SGD(net.parameters(), lr=0.0005, momentum=0.9, weight_decay=0.0005)  ###0.0005
+    optimizer = SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     criterion = BCELoss2d()
     if torch.cuda.is_available():
         net.cuda()
@@ -42,7 +42,7 @@ def train(net):
     best_val_loss = 0.0
     for e in range(EPOCH):
         # iterate over batches
-        lr_scheduler(optimizer, e)
+        # lr_scheduler(optimizer, e)
         num = 0
         total = len(train_loader.dataset.img_names)
         for idx, (img, label) in enumerate(train_loader):
