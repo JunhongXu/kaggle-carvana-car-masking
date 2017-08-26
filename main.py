@@ -102,8 +102,7 @@ def train(net):
                   flush=True, end='')
             logger.log(train_acc, dice, time=(tac-tic)/60, train_loss=bce_loss.data[0], val_loss=valid_loss)
             if best_val_loss < dice:
-                print('Save')
-                torch.save(net.state_dict(), model_name+'.pth')
+                torch.save(net.state_dict(), 'models/'+model_name+'.pth')
                 best_val_loss = dice
     logger.save()
 

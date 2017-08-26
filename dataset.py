@@ -33,6 +33,7 @@ std = [
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None,
                  test=False, preload=False, mean=None, std=None, start=None, end=None):
+        # TODO: add direction information????
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
         self.out_h = out_h
