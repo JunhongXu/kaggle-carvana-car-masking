@@ -46,7 +46,6 @@ class SoftDiceLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super(SoftDiceLoss, self).__init__()
 
-
     def forward(self, logits, targets):
         num = targets.size(0)
         probs = F.sigmoid(logits)

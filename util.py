@@ -8,7 +8,7 @@ from torch.nn import functional as F
 import glob
 
 
-def pred(dataloader, net):
+def pred(dataloader, net, verbose=False):
     net.eval()
     total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
     pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
@@ -24,7 +24,8 @@ def pred(dataloader, net):
         l = np.squeeze(l)
         pred_labels[prev: prev+batch_size] = l
         prev = prev + batch_size
-        print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
+        if verbose:
+            print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
     return pred_labels
 
 
@@ -109,6 +110,34 @@ def split(num=None):
                 for v_idx in test_index:
                     f.write(str(img_names[v_idx]).split('/')[-1][:-4])
                     f.write('\n')
+
+
+
+class Logger(object):
+    def __init__(self, name):
+        """Logger records training loss/acc per print_it, validation loss/acc per epoch, and num_mins per epoch"""
+        self.name = name
+        self.save_path = name
+        self.train_acc = []
+        self.val_acc = []
+        self.train_loss = []
+        self.val_loss = []
+        self.time = []
+
+    def log(self, train_acc, val_acc, train_loss, val_loss, time):
+        self.train_acc.append(train_acc)
+        self.val_acc.append(val_acc)
+        self.train_loss.append(train_loss)
+        self.val_loss.append(val_loss)
+        self.time.append(time)
+
+    def save(self):
+        with open(os.path.join('logger', self.name+'.txt'), 'w') as f:
+            f.write('EPOCH||Train Acc||Val Acc||Train loss||Val loss||Time\n')
+            for idx, (ta, va, tl, vl, t) in \
+                    enumerate(zip(self.train_acc, self.val_acc, self.train_loss, self.val_loss, self.time)):
+                f.write(' %s || %.5f || %.5f || %.4f || %.5f || %.4f  \n' % (idx, ta, va, tl, vl, t))
+
 
 if __name__ == '__main__':
     from scipy.misc import imread

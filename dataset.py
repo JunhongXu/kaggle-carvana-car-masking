@@ -99,15 +99,13 @@ class CarvanaDataSet(Dataset):
                 label = self.labels[index]
             else:
                 img_name = CARANA_DIR+'/train/'.format(self.img_names[index])
-                img = cv2.resize(cv2.imread(img_name+'train/{}.jpg'.format(self.img_names[index])), (self.W, self.H))
-                label = Image.open(img_name+'train_masks/{}_mask.gif'.format(self.img_names[index])).\
-                    resize((self.out_w, self.out_h))
+                img = cv2.imread(img_name+'train/{}.jpg'.format(self.img_names[index])), (self.W, self.H)
+                label = np.array(Image.open(img_name+'train_masks/{}_mask.gif'.format(self.img_names[index])))
                 label = np.array(label)
-
-            img = img/255.
             if self.transform is not None:
-                # image transform on both mask and image
                 img, label = self.transform((img, label))
+            img = img/255.
+            img, label = cv2.resize(img, (self.W, self.H)), cv2.resize(label, (self.out_w, self.out_h))
             img = toTensor(img)
             label = toTensor(label)
             if self.normalize is not None:
@@ -147,6 +145,45 @@ class VerticalFlip(object):
         return img, l
 
 
+class RandomHueSaturationValue(object):
+    def __init__(self, hue_shift_limit=(-100, 100), sat_shift_limit=(-155, 155), val_shift_limit=(-155, 155)):
+        self.hue_shift_limit = hue_shift_limit
+        self.sat_shift_limit = sat_shift_limit
+        self.val_shift_limit = val_shift_limit
+
+    def __call__(self, data):
+        image, l = data
+        if random.random() < 0.5:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            h, s, v = cv2.split(image)
+            hue_shift = np.random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1])
+            h = cv2.add(h, hue_shift)
+            sat_shift = np.random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1])
+            s = cv2.add(s, sat_shift)
+            val_shift = np.random.uniform(self.val_shift_limit[0], self.val_shift_limit[1])
+            v = cv2.add(v, val_shift)
+            image = cv2.merge((h, s, v))
+            image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
+        return image, l
+
+
+class RandomCrop(object):
+    def __init__(self, size=(1100, 1500)):
+        self.size = size
+
+    def __call__(self, data):
+        img, l = data
+        u = random.random()
+        if u < 0.5:
+            h, w, c = img.shape
+            ht, wt = self.size
+
+            x, y = np.random.randint(0, w-wt), np.random.randint(0, h-ht)
+            img = img[x:ht+x, y:wt+y]
+            l = l[x:ht+x, y:+wt+y]
+        return img, l
+
+
 def get_valid_dataloader(batch_size, split, H=512, W=512, out_h=1280, out_w=1918, num_works=0, mean=mean, std=std):
     return DataLoader(batch_size=batch_size, num_workers=num_works,
         dataset=CarvanaDataSet(
@@ -162,7 +199,9 @@ def get_train_dataloader(split, mean, std, H=512, W=512, out_h=1280, out_w=1918,
     return DataLoader(batch_size=batch_size, shuffle=True, num_workers=num_works,
                       dataset=CarvanaDataSet(split, preload=False, H=H, W=W, out_w=out_w, out_h=out_h,
                                              test=False, mean=mean, std=std,
-                                             transform=Compose([VerticalFlip(), HorizontalFlip()])))
+                                             transform=Compose([# VerticalFlip(),
+                                                                RandomCrop(),
+                                                                HorizontalFlip()])))
 
 
 def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None):
