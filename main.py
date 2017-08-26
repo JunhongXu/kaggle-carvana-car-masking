@@ -87,7 +87,7 @@ def train(net):
                 moving_bce_loss /= print_it
                 tac = time.time()
                 print('\r %.3f || %.5f || %.5f || %.4f || ... || ... || % .2f'
-                      % (idx/total, bce_loss.data[0], moving_bce_loss, train_acc, (tac-tic)/60),
+                      % (num/total, bce_loss.data[0], moving_bce_loss, train_acc, (tac-tic)/60),
                       flush=True, end='')
 
         if e % 1 == 0:
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     # from scipy.misc import imshow
     valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
                                                       out_w=out_w, mean=None, std=None), \
-                                 get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=4, num_works=6,
+                                 get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
                                                       out_h=out_h, out_w=out_w, mean=None, std=None)
     train(net)
     # valid_loader = get_valid_dataloader(64)

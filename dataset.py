@@ -99,7 +99,7 @@ class CarvanaDataSet(Dataset):
                 label = self.labels[index]
             else:
                 img_name = CARANA_DIR+'/train/'.format(self.img_names[index])
-                img = cv2.imread(img_name+'train/{}.jpg'.format(self.img_names[index])), (self.W, self.H)
+                img = cv2.imread(img_name+'train/{}.jpg'.format(self.img_names[index]))
                 label = np.array(Image.open(img_name+'train_masks/{}_mask.gif'.format(self.img_names[index])))
                 label = np.array(label)
             if self.transform is not None:
