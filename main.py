@@ -121,14 +121,14 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNet_1024_5((3, 1280, 1920), 1)
+    net = UNet_double_1024_5((3, 1280, 1920), 1)
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=4, H=1280, W=1920, out_h=1280, out_w=1920,
+    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=640, W=960, out_h=1280, out_w=1920,
                                                        mean=None,
                                                      std=None), \
-                                get_train_dataloader(split='train-5000', H=1280, W=1920, batch_size=2, num_works=6,out_h=1280, out_w=1920,
+                                get_train_dataloader(split='train-5000', H=640, W=960, batch_size=4, num_works=6,out_h=1280, out_w=1920,
                                                      mean=None,
                                                      std=None)
     train(net)
