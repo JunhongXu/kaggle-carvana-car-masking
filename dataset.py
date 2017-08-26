@@ -168,7 +168,7 @@ def get_train_dataloader(split, mean, std, H=512, W=512, out_h=1280, out_w=1918,
 def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None):
     return DataLoader(batch_size=batch_size, num_workers=4,
                       dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std, mean=mean, test=True,
-                                            ))
+                                            out_h=out_h, out_w=out_w))
 
 
 if __name__ == '__main__':
