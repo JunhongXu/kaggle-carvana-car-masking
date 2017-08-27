@@ -200,7 +200,7 @@ def get_train_dataloader(split, mean, std, H=512, W=512, out_h=1280, out_w=1918,
     return DataLoader(batch_size=batch_size, shuffle=True, num_workers=num_works,
                       dataset=CarvanaDataSet(split, preload=False, H=H, W=W, out_w=out_w, out_h=out_h,
                                              test=False, mean=mean, std=std,
-                                             transform=Compose([# VerticalFlip(),
+                                             transform=Compose([VerticalFlip(),
                                                                 RandomCrop(),
                                                                 HorizontalFlip()])))
 

@@ -15,20 +15,18 @@ import numpy as np
 import time
 from util import Logger
 EPOCH = 70
-LEARNING_RATE = 5e-4
-L2_DECAY = 7e-4
 in_h = 1024
 in_w = 1024
-out_w = 1024
-out_h = 1024
+out_w = 2048
+out_h = 2048
 print_it = 20
-model_name = 'UNET1024_1024'
+model_name = 'UNET1024_2048'
 
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
-        lr = 0.005
-    elif 10 < epoch<= 35:
+        lr = 0.01
+    elif 20 < epoch<= 35:
         lr = 0.001
     elif 35 < epoch <= 40:
         lr = 0.0005
@@ -79,26 +77,27 @@ def train(net):
             if idx == 0:
                 optimizer.zero_grad()
             loss.backward()
-            if idx % 10 == 0:
+            if idx % 5 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
             if idx % print_it == 0:
-                moving_bce_loss /= print_it
+                smooth_loss = moving_bce_loss/(idx+1)
                 tac = time.time()
                 print('\r %.3f || %.5f || %.5f || %.4f || ... || ... || % .2f'
-                      % (num/total, bce_loss.data[0], moving_bce_loss, train_acc, (tac-tic)/60),
+                      % (num/total, bce_loss.data[0], smooth_loss, train_acc, (tac-tic)/60),
                       flush=True, end='')
 
         if e % 1 == 0:
             # validate
+            smooth_loss = moving_bce_loss/(idx+1)
             pred_labels = pred(valid_loader, net)
             valid_loss = evaluate(valid_loader, net, bce2d)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
             tac = time.time()
             print('\r %s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f'
-                  % (e, bce_loss.data[0], moving_bce_loss, train_acc, valid_loss, dice, (tac-tic)/60),
+                  % (e, bce_loss.data[0], smooth_loss, train_acc, valid_loss, dice, (tac-tic)/60),
                   flush=True, end='')
             logger.log(train_acc, dice, time=(tac-tic)/60, train_loss=bce_loss.data[0], val_loss=valid_loss)
             if best_val_loss < dice:
@@ -145,13 +144,13 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNet_1024_5((3, 1024, 1024), 1)
+    net = UNet_double_1024_5((3, 1024, 1024), 1)
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow
     valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
                                                       out_w=out_w, mean=None, std=None), \
-                                 get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
+                                 get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=4, num_works=6,
                                                       out_h=out_h, out_w=out_w, mean=None, std=None)
     train(net)
     # valid_loader = get_valid_dataloader(64)
