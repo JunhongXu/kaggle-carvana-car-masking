@@ -14,6 +14,8 @@ import pandas as pd
 import numpy as np
 import time
 from util import Logger
+import torch.nn as nn
+
 EPOCH = 70
 START_EPOCH = 30
 in_h = 1024
@@ -22,6 +24,7 @@ out_w = 1024
 out_h = 1024
 print_it = 20
 model_name = 'UNET1024_1024'
+test_time_aug_dim = [(1024, 1024), (784, 784), (512, 512)]
 
 
 def lr_scheduler(optimizer, epoch):
@@ -95,7 +98,7 @@ def train(net):
         if e % 1 == 0:
             # validate
             smooth_loss = moving_bce_loss/(idx+1)
-            pred_labels = pred(valid_loader, net)
+            pred_labels, _ = pred(valid_loader, net)
             valid_loss = evaluate(valid_loader, net, bce2d)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
@@ -116,18 +119,23 @@ def test(net):
     save the predicted mask image to .jpg file
     save the predicted mask prediction to submission file using rle_encode
     """
+    upsample = nn.Upsample(size=(out_h, out_w), mode='bilinear')
     if torch.cuda.is_available():
         net.cuda()
     # net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet.pth'))
-    for (s, e) in [(0, 20000), (20000, 40000), (40000, 60000), (60000, 80000), (80000, 100064)]:
-        test_loader = get_test_dataloader(batch_size=8, H=in_h, W=in_w, start=s, end=e, out_h=out_h, out_w=out_w,
-                                     mean=None, std=None)
-        pred_labels = pred(test_loader, net, verbose=True)
+    for s, e in [(0, 20000), (20000, 40000), (40000, 60000), (60000, 80000), (80000, 100064)]:
+        pred_logits = np.empty((e - s, out_h, out_w))
+        for (_in_h, _in_w) in test_time_aug_dim:
+            test_loader = get_test_dataloader(batch_size=8, H=_in_h, W=_in_h, start=s, end=e, out_h=out_h, out_w=out_w,
+                                              mean=None, std=None)
+            _, logits = pred(test_loader, net, verbose=True)
+            # pred_logits +=
         names = glob.glob(CARANA_DIR+'/test/*.jpg')[s:e]
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
         save_mask(mask_imgs=pred_labels, model_name=model_name, names=names)
+        del pred_logits
         del pred_labels
 
 

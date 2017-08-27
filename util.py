@@ -12,6 +12,7 @@ def pred(dataloader, net, verbose=False):
     net.eval()
     total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
     pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
+    pred_logits = np.empty((total_size, H, W), dtype=np.uint8)
     prev = 0
     for idx, (img, _) in enumerate(dataloader):
         batch_size = img.size(0)
@@ -23,10 +24,11 @@ def pred(dataloader, net, verbose=False):
         l = logits > 0.5
         l = np.squeeze(l)
         pred_labels[prev: prev+batch_size] = l
+        pred_logits[prev: prev+batch_size] = logits
         prev = prev + batch_size
         if verbose:
             print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
-    return pred_labels
+    return pred_labels, pred_logits
 
 
 def evaluate(dataloader, net, criterion):
