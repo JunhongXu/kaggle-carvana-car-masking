@@ -15,23 +15,24 @@ import numpy as np
 import time
 from util import Logger
 EPOCH = 70
+START_EPOCH = 30
 in_h = 1024
 in_w = 1024
-out_w = 2048
-out_h = 2048
+out_w = 1024
+out_h = 1024
 print_it = 20
-model_name = 'UNET1024_2048'
+model_name = 'UNET1024_1024'
 
 
 def lr_scheduler(optimizer, epoch):
-    if 0 <= epoch <= 10:
+    if 0 <= epoch <= 20:
         lr = 0.01
     elif 20 < epoch<= 35:
-        lr = 0.001
+        lr = 0.005
     elif 35 < epoch <= 40:
-        lr = 0.0005
+        lr = 0.001
     else:
-        lr = 0.0001
+        lr = 0.001
     for param in optimizer.param_groups:
         param['lr'] = lr
 
@@ -43,14 +44,17 @@ def train(net):
     if torch.cuda.is_available():
         net.cuda()
     logger = Logger(model_name)
-
+    if START_EPOCH > 0:
+        net.load_state_dict(torch.load('models/'+model_name+'.pth'))
+        print('------------Resume training %s from %s---------------' %(model_name, START_EPOCH))
     # train
     print('EPOCH || BCE loss || Avg BCE loss || Train Acc || Val loss || Val Acc || Time\n')
     best_val_loss = 0.0
-    moving_bce_loss = 0.0
-    for e in range(EPOCH):
+    for e in range(START_EPOCH, EPOCH):
         # iterate over batches
         lr_scheduler(optimizer, e)
+        moving_bce_loss = 0.0
+
         num = 0
         total = len(train_loader.dataset.img_names)
         tic = time.time()
@@ -99,6 +103,7 @@ def train(net):
             print('\r %s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f'
                   % (e, bce_loss.data[0], smooth_loss, train_acc, valid_loss, dice, (tac-tic)/60),
                   flush=True, end='')
+            print('\n')
             logger.log(train_acc, dice, time=(tac-tic)/60, train_loss=bce_loss.data[0], val_loss=valid_loss)
             if best_val_loss < dice:
                 torch.save(net.state_dict(), 'models/'+model_name+'.pth')
@@ -144,13 +149,13 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNet_double_1024_5((3, 1024, 1024), 1)
+    net = UNet_1024_5((3, 1024, 1024), 1)
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow
     valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
                                                       out_w=out_w, mean=None, std=None), \
-                                 get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=4, num_works=6,
+                                 get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
                                                       out_h=out_h, out_w=out_w, mean=None, std=None)
     train(net)
     # valid_loader = get_valid_dataloader(64)
