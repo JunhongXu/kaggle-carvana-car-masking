@@ -120,19 +120,19 @@ def test(net):
         net.cuda()
     # net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet.pth'))
-    for (s, e) in [(20000, 40000), (40000, 60000), (60000, 80000), (80000, 100064)]:
-        test_loader = get_test_dataloader(batch_size=8, H=1024, W=1024, start=s, end=e, out_h=1024, out_w=1024,
+    for (s, e) in [(0, 20000), (20000, 40000), (40000, 60000), (60000, 80000), (80000, 100064)]:
+        test_loader = get_test_dataloader(batch_size=8, H=in_h, W=in_w, start=s, end=e, out_h=out_h, out_w=out_w,
                                      mean=None, std=None)
-        pred_labels = pred(test_loader, net)
+        pred_labels = pred(test_loader, net, verbose=True)
         names = glob.glob(CARANA_DIR+'/test/*.jpg')[s:e]
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
-        save_mask(mask_imgs=pred_labels, model_name=model_name+'.pth', names=names)
+        save_mask(mask_imgs=pred_labels, model_name=model_name, names=names)
         del pred_labels
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'.pth'+'/*.png')
+    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'/*.png')
     names = []
     rle = []
     # df = pd.DataFrame({'img'})
@@ -153,11 +153,11 @@ if __name__ == '__main__':
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
-                                                      out_w=out_w, mean=None, std=None), \
-                                 get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
-                                                      out_h=out_h, out_w=out_w, mean=None, std=None)
-    train(net)
+    # valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
+    #                                                  out_w=out_w, mean=None, std=None), \
+    #                             get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
+    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
+    # train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #    net.cuda()

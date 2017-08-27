@@ -169,7 +169,7 @@ class RandomHueSaturationValue(object):
 
 
 class RandomCrop(object):
-    def __init__(self, size=(1100, 1500)):
+    def __init__(self, size=(1024, 1500)):
         self.size = size
 
     def __call__(self, data):
