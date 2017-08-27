@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
-from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
+from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, SoftDiceLoss
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
@@ -15,6 +15,8 @@ import numpy as np
 import time
 from util import Logger
 from math import ceil
+from matplotlib import pyplot as plt
+from scipy.special import expit
 EPOCH = 70
 START_EPOCH = 30
 in_h = 1024
@@ -22,10 +24,12 @@ in_w = 1024
 out_w = 1024
 out_h = 1024
 print_it = 20
-interval = 10
+interval = 2000
 NUM = 100064
 model_name = 'UNET1024_1024'
-test_aug_dim = [(1024, 1024), (768, 768), (512, 512)]
+DEBUG = False
+
+test_aug_dim = [(1024, 1024), (960, 960), (512, 512)]
 
 
 def lr_scheduler(optimizer, epoch):
@@ -135,18 +139,32 @@ def test(net):
             e = NUM
         total_preds = np.zeros((e-s, out_h, out_w))
         for (_in_h, _in_w) in test_aug_dim:
-            test_loader = get_test_dataloader(batch_size=8, H=_in_h, W=_in_w, start=s, end=e, out_h=out_h, out_w=out_w,
+            test_loader = get_test_dataloader(batch_size=12, H=_in_h, W=_in_w, start=s, end=e, out_h=out_h, out_w=out_w,
                                               mean=None, std=None)
-            _, preds = pred(test_loader, net, verbose=True, upsample=upsampler)
-            total_preds = preds + total_preds
-
+            pred_labels, predictions = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
+            total_preds = predictions + total_preds
+            del predictions
+            del pred_labels
+        # total_preds = total_preds >= ceil(len(test_aug_dim)/2)
+        # total_preds = expit(total_preds)
+        # print(total_preds.shape)
+        # total_preds = total_preds + predictions
         total_preds = total_preds / len(test_aug_dim)
-        cv2.imshow('test', (total_preds[0] > 0.5).astype(np.uint8)*100)
+        if DEBUG:
+            mask = cv2.resize((total_preds[0] > 0.5).astype(np.uint8),  (1918, 1280))
+            mask = np.ma.masked_where(mask==0, mask)
+            plt.imshow(cv2.resize(cv2.imread(test_loader.dataset.img_names[0]), (1918, 1280)))
+            plt.imshow(mask, 'jet', alpha=0.6)
+            # cv2.imshow('orig', cv2.resize(cv2.imread(test_loader.dataset.img_names[0]), (1918, 1280)))
+            # cv2.imshow('test', cv2.resize((total_preds[0]).astype(np.uint8),  (1918, 1280))*100)
+            # cv2.waitKey()
+            plt.show()
         names = glob.glob(CARANA_DIR+'/test/*.jpg')[s:e]
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
         save_mask(mask_imgs=(total_preds > 0.5).astype(np.uint8), model_name=model_name, names=names)
-        del preds
+
+
 
 
 def do_submisssion():

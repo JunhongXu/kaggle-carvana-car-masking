@@ -12,7 +12,7 @@ def pred(dataloader, net, upsample=None, verbose=False):
     net.eval()
     total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
     pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
-    preds = np.empty((total_size, H, W))
+    predictions = np.empty((total_size, H, W))
     prev = 0
     for idx, (img, _) in enumerate(dataloader):
         batch_size = img.size(0)
@@ -21,16 +21,19 @@ def pred(dataloader, net, upsample=None, verbose=False):
         scores, logits = net(img)
         if upsample is not None:
             logits = upsample(logits)
+            scores = upsample(scores)
         # print(_logits)
         logits = logits.data.cpu().numpy()
+        scores = scores.data.cpu().numpy()
         l = logits > 0.5
         l = np.squeeze(l)
+        scores = np.squeeze(scores)
         pred_labels[prev: prev+batch_size] = l
-        preds[prev: prev+batch_size] = logits
+        predictions[prev: prev+batch_size] = scores
         prev = prev + batch_size
         if verbose:
             print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
-    return pred_labels, pred
+    return pred_labels, predictions
 
 
 def evaluate(dataloader, net, criterion):
@@ -147,7 +150,7 @@ if __name__ == '__main__':
     from scipy.misc import imread
     import cv2
    # split(5000)
-    imgs = glob.glob(CARANA_DIR+'/UNET1024_1024/*.png')
+    imgs = glob.glob(CARANA_DIR+'/train/train_masks/*.gif')
     img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
     orig = glob.glob(CARANA_DIR+'/test/*.jpg')
     for img, img_, orig_ in zip(imgs, img_2, orig):
