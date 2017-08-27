@@ -145,7 +145,7 @@ if __name__ == '__main__':
     from scipy.misc import imread
     import cv2
    # split(5000)
-    imgs = glob.glob(CARANA_DIR+'/unet1024_1_full/*.png')
+    imgs = glob.glob(CARANA_DIR+'/UNET1024_1024/*.png')
     img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
     orig = glob.glob(CARANA_DIR+'/test/*.jpg')
     for img, img_, orig_ in zip(imgs, img_2, orig):
