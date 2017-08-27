@@ -116,6 +116,7 @@ def test(net):
     save the predicted mask image to .jpg file
     save the predicted mask prediction to submission file using rle_encode
     """
+    net.load_state_dict(torch.load('models/'+model_name+'.pth'))
     if torch.cuda.is_available():
         net.cuda()
     # net = nn.DataParallel(net)
