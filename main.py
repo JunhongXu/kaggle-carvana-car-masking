@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 import time
 from util import Logger
+from math import ceil
 EPOCH = 70
 START_EPOCH = 30
 in_h = 1024
@@ -21,7 +22,10 @@ in_w = 1024
 out_w = 1024
 out_h = 1024
 print_it = 20
+interval = 10
+NUM = 100064
 model_name = 'UNET1024_1024'
+test_aug_dim = [(1024, 1024), (768, 768), (512, 512)]
 
 
 def lr_scheduler(optimizer, epoch):
@@ -117,20 +121,32 @@ def test(net):
     save the predicted mask prediction to submission file using rle_encode
     """
     # test
+    upsampler = nn.Upsample(size=(out_h, out_w), mode='bilinear')
     net.load_state_dict(torch.load('models/'+model_name+'.pth'))
     if torch.cuda.is_available():
         net.cuda()
-    # net = nn.DataParallel(net)
-    # net.load_state_dict(torch.load('models/unet.pth'))
-    for (s, e) in [(0, 20000), (20000, 40000), (40000, 60000), (60000, 80000), (80000, 100064)]:
-        test_loader = get_test_dataloader(batch_size=8, H=in_h, W=in_w, start=s, end=e, out_h=out_h, out_w=out_w,
-                                     mean=None, std=None)
-        pred_labels = pred(test_loader, net, verbose=True)
+
+    times = ceil(NUM/interval)
+
+    for t in range(int(times)):
+        s = t * interval
+        e = (t+1) * interval
+        if t == (times -1):
+            e = NUM
+        total_preds = np.zeros((e-s, out_h, out_w))
+        for (_in_h, _in_w) in test_aug_dim:
+            test_loader = get_test_dataloader(batch_size=8, H=_in_h, W=_in_w, start=s, end=e, out_h=out_h, out_w=out_w,
+                                              mean=None, std=None)
+            _, preds = pred(test_loader, net, verbose=True, upsample=upsampler)
+            total_preds = preds + total_preds
+
+        total_preds = total_preds / len(test_aug_dim)
+        cv2.imshow('test', (total_preds[0] > 0.5).astype(np.uint8)*100)
         names = glob.glob(CARANA_DIR+'/test/*.jpg')[s:e]
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
-        save_mask(mask_imgs=pred_labels, model_name=model_name, names=names)
-        del pred_labels
+        save_mask(mask_imgs=(total_preds > 0.5).astype(np.uint8), model_name=model_name, names=names)
+        del preds
 
 
 def do_submisssion():
@@ -151,7 +167,7 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNet_1024_5((3, 1024, 1024), 1)
+    net = UNet_1024_5((3, in_h, in_w), 1)
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow

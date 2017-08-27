@@ -8,27 +8,29 @@ from torch.nn import functional as F
 import glob
 
 
-def pred(dataloader, net, verbose=False):
+def pred(dataloader, net, upsample=None, verbose=False):
     net.eval()
     total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
     pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
-    pred_logits = np.empty((total_size, H, W), dtype=np.uint8)
+    preds = np.empty((total_size, H, W))
     prev = 0
     for idx, (img, _) in enumerate(dataloader):
         batch_size = img.size(0)
         # print(img.numpy())
         img = Variable(img.cuda(), volatile=True)
-        out, logits = net(img)
+        scores, logits = net(img)
+        if upsample is not None:
+            logits = upsample(logits)
         # print(_logits)
         logits = logits.data.cpu().numpy()
         l = logits > 0.5
         l = np.squeeze(l)
         pred_labels[prev: prev+batch_size] = l
-        pred_logits[prev: prev+batch_size] = logits
+        preds[prev: prev+batch_size] = logits
         prev = prev + batch_size
         if verbose:
             print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
-    return pred_labels, pred_logits
+    return pred_labels, pred
 
 
 def evaluate(dataloader, net, criterion):
