@@ -17,15 +17,16 @@ from math import ceil
 from matplotlib import pyplot as plt
 
 EPOCH = 70
-START_EPOCH = 0
-in_h = 1024
-in_w = 1024
-out_w = 1024
-out_h = 1024
+START_EPOCH = 41
+in_h = 1152
+in_w = 1152
+out_w = 1152
+out_h = 1152
 print_it = 20
 interval = 2000
 NUM = 100064
-model_name = 'UNET1024_1024'
+model_name = 'UNET1152_1152_SOFTIOU'
+BATCH = 4
 DEBUG = False
 
 test_aug_dim = [(1024, 1024), (960, 960), (512, 512)]
@@ -34,12 +35,12 @@ test_aug_dim = [(1024, 1024), (960, 960), (512, 512)]
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 20:
         lr = 0.01
-    elif 20 < epoch<= 35:
+    elif 20 < epoch<= 30:
         lr = 0.005
-    elif 35 < epoch <= 40:
+    elif 30 < epoch <= 40:
         lr = 0.001
     else:
-        lr = 0.001
+        lr = 0.0005
     for param in optimizer.param_groups:
         param['lr'] = lr
 
@@ -103,7 +104,7 @@ def train(net):
         if e % 1 == 0:
             # validate
             smooth_loss = moving_bce_loss/(idx+1)
-            pred_labels = pred(valid_loader, net)
+            pred_labels, _ = pred(valid_loader, net)
             valid_loss = evaluate(valid_loader, net, bce2d)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
@@ -191,9 +192,9 @@ if __name__ == '__main__':
     # from scipy.misc import imshow
     valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
                                                      out_w=out_w, mean=None, std=None), \
-                                get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
+                                get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
                                                      out_h=out_h, out_w=out_w, mean=None, std=None)
-    # train(net)
+    train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #    net.cuda()
