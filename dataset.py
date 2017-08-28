@@ -126,7 +126,7 @@ def toTensor(img):
         return tensor
 
 
-class HorizontalFlip(object):
+class VerticalFlip(object):
     def __call__(self, data):
         u = random.random()
         img, l = data
@@ -136,7 +136,7 @@ class HorizontalFlip(object):
         return img, l
 
 
-class VerticalFlip(object):
+class HorizontalFlip(object):
     def __call__(self, data):
         u = random.random()
         img, l = data
@@ -169,7 +169,7 @@ class RandomHueSaturationValue(object):
 
 
 class RandomCrop(object):
-    def __init__(self, size=(1024, 1500)):
+    def __init__(self, size=(1240, 1880)):
         self.size = size
 
     def __call__(self, data):
@@ -178,7 +178,6 @@ class RandomCrop(object):
         if u < 0.5:
             h, w, c = img.shape
             ht, wt = self.size
-
             x, y = np.random.randint(0, w-wt), np.random.randint(0, h-ht)
             img = img[x:ht+x, y:wt+y]
             l = l[x:ht+x, y:+wt+y]
@@ -196,13 +195,12 @@ def get_valid_dataloader(batch_size, split, H=512, W=512, out_h=1280, out_w=1918
     )
 
 
-def get_train_dataloader(split, mean, std, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, num_works=6):
+def get_train_dataloader(split, mean, std, transforms=Compose([RandomCrop(), HorizontalFlip()]),
+                         H=512, W=512, out_h=1280, out_w=1918, batch_size=64, num_works=6):
     return DataLoader(batch_size=batch_size, shuffle=True, num_workers=num_works,
                       dataset=CarvanaDataSet(split, preload=False, H=H, W=W, out_w=out_w, out_h=out_h,
                                              test=False, mean=mean, std=std,
-                                             transform=Compose([# VerticalFlip(),
-                                                                RandomCrop(),
-                                                                HorizontalFlip()])))
+                                             transform=transforms))
 
 
 def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None):
@@ -225,5 +223,12 @@ if __name__ == '__main__':
     #     mean, std = dataset.mean_std()
     #     print('Fold {}--mean: {}, std: {}'.format(i, mean, std))
      #    del dataset
-    dataset = CarvanaDataSet('train-5000', H=640, W=960, out_h=1280, out_w=1918, preload=True, test=False)
-    print(dataset.mean_std())
+    dataset = get_train_dataloader('train-5000', H=1024, W=1024, out_h=1024, out_w=1024, batch_size=1,
+                                   mean=None, std=None)
+    for img, label in dataset:
+        img = np.transpose(img.cpu().numpy(), axes=(0, 2, 3, 1))
+        label = label.cpu().numpy()
+        print(img.shape, label.shape)
+        cv2.imshow('image', np.squeeze(img))
+        cv2.imshow('label', np.squeeze(label))
+        cv2.waitKey()

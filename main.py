@@ -3,7 +3,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
-from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, mean, std
+from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, HorizontalFlip, \
+    mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
@@ -17,7 +18,7 @@ from math import ceil
 from matplotlib import pyplot as plt
 
 EPOCH = 70
-START_EPOCH = 41
+START_EPOCH = 0
 in_h = 1152
 in_w = 1152
 out_w = 1152
@@ -25,7 +26,7 @@ out_h = 1152
 print_it = 20
 interval = 2000
 NUM = 100064
-model_name = 'UNET1152_1152_SOFTIOU'
+model_name = 'UNET1152_1152SOFIoU'
 BATCH = 4
 DEBUG = False
 
@@ -34,11 +35,11 @@ test_aug_dim = [(1024, 1024), (960, 960), (512, 512)]
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 20:
-        lr = 0.01
-    elif 20 < epoch<= 30:
         lr = 0.005
-    elif 30 < epoch <= 40:
+    elif 20 < epoch<= 40:
         lr = 0.001
+    elif 30 < epoch <= 40:
+        lr = 0.0007
     else:
         lr = 0.0005
     for param in optimizer.param_groups:
@@ -48,7 +49,7 @@ def lr_scheduler(optimizer, epoch):
 def train(net):
     optimizer = SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
-    softdice = SoftDiceLoss()
+    # softdice = SoftDiceLoss()
     softiou = SoftIoULoss()
     if torch.cuda.is_available():
         net.cuda()
@@ -63,6 +64,10 @@ def train(net):
         # iterate over batches
         lr_scheduler(optimizer, e)
         moving_bce_loss = 0.0
+
+        if e >20:
+            # reduce augmentation
+            train_loader.dataset.transforms = HorizontalFlip()
 
         num = 0
         total = len(train_loader.dataset.img_names)
