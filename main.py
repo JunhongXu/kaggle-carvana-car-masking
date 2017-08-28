@@ -5,9 +5,8 @@ from torch.optim import Adam, SGD
 import glob
 from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, mean, std
 from unet import UNet512, UNetV2, UNetV3
-from myunet import UNet_double_1024_5, UNet_1024_5, SoftDiceLoss
+from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
-from myunet import BCELoss2d
 import cv2
 from scipy.misc import imread
 import pandas as pd
@@ -16,9 +15,9 @@ import time
 from util import Logger
 from math import ceil
 from matplotlib import pyplot as plt
-from scipy.special import expit
+
 EPOCH = 70
-START_EPOCH = 30
+START_EPOCH = 0
 in_h = 1024
 in_w = 1024
 out_w = 1024
@@ -49,6 +48,7 @@ def train(net):
     optimizer = SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
     softdice = SoftDiceLoss()
+    softiou = SoftIoULoss()
     if torch.cuda.is_available():
         net.cuda()
     logger = Logger(model_name)
@@ -75,7 +75,7 @@ def train(net):
             out, logits = net(img)
             # out = out.Long()
             bce_loss = bce2d(out, label)
-            loss = bce_loss + softdice(out, label)
+            loss = bce_loss + softiou(out, label)
             moving_bce_loss += bce_loss.data[0]
 
             logits = logits.data.cpu().numpy() > 0.5
@@ -189,10 +189,10 @@ if __name__ == '__main__':
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow
-    # valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
-    #                                                  out_w=out_w, mean=None, std=None), \
-    #                             get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
-    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
+    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
+                                                     out_w=out_w, mean=None, std=None), \
+                                get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=6, num_works=6,
+                                                     out_h=out_h, out_w=out_w, mean=None, std=None)
     # train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
@@ -214,5 +214,5 @@ if __name__ == '__main__':
 
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
 
-    test(net)
-    do_submisssion()
+    # test(net)
+    # do_submisssion()

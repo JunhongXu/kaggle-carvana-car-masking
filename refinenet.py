@@ -1,13 +1,94 @@
 import torch
 import torch.nn as nn
+import math
+import numpy as np
 from torchvision.models.resnet import Bottleneck
 
 
-class ResNet(nn.Module):
+class RefineNetBlock(nn.Module):
+    def __init__(self):
+        super(RefineNetBlock, self).__init__()
 
+    def forward(self, x):
+        pass
+
+
+class RCU(nn.Module):
+    def __init__(self, input_feats, out_feats=256, batch_norm=False):
+        """What is RCU output feature number? In paper, it says 256, but it can not sum with different input feature sizes."""
+        super(RCU, self).__init__()
+        self.batch_norm = batch_norm
+        if batch_norm:
+            self.bn1 = nn.BatchNorm2d(input_feats)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.conv1 = nn.Conv2d(input_feats, out_feats, kernel_size=3, stride=1, padding=1, bias=not batch_norm)
+
+        if batch_norm:
+            self.bn2 = nn.BatchNorm2d(input_feats)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_feats, input_feats, kernel_size=3, stride=1, padding=1, bias=not batch_norm)
+
+    def forward(self, x):
+        if self.batch_norm:
+            out = self.bn1(x)
+        else:
+            out = x
+        out = self.relu1(out)
+        out = self.conv1(out)
+
+        if self.batch_norm:
+            out = self.bn2(out)
+        out = self.relu2(out)
+        out = self.conv2(out)
+
+        out += x
+        return out
+
+
+class FusionBlock(nn.Module):
+    def __init__(self, input_feat1, input_feat2, size):
+        """Fuse two input features, input_feat1 is the smaller feature"""
+        super(FusionBlock, self).__init__()
+        self.path1 = nn.Conv2d(input_feat1, input_feat1, kernel_size=3, stride=1, padding=1)
+        self.path2 = nn.Conv2d(input_feat2, input_feat1, kernel_size=3, stride=1, padding=1)
+        self.upsample = nn.Upsample(size=size, mode='bilinear')
+
+    def forward(self, path1, path2):
+        x1 = self.path1(path1)
+        x2 = self.path2(path2)
+
+        return self.upsample(x1) + x2
+
+
+class ChainedResPool(nn.Module):
+    def __init__(self, num_feat):
+        """how to do chained pooling exactly? every pool gives spatial size reduction, can not sum together different feature maps."""
+        super(ChainedResPool, self).__init__()
+        self.relu = nn.ReLU(inplace=True)
+        self.pool1 = nn.MaxPool2d(kernel_size=5, stride=1)
+        self.conv1 = nn.Conv2d(num_feat, num_feat, 3, stride=1, padding=1)
+
+        self.pool2 = nn.MaxPool2d(kernel_size=5, stride=1)
+        self.conv2 = nn.Conv2d(num_feat, num_feat, 3, stride=1, padding=1)
+
+    def forward(self, x):
+        x = self.relu(x)
+        out1 = self.pool1(x)
+        out1 = self.conv1(out1)
+
+        out = x + out1
+
+        out2 = self.pool2(out1)
+        out2 = self.conv2(out2)
+
+        out = out + out2
+        return out
+
+
+class RefineNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000):
         self.inplanes = 64
-        super(ResNet, self).__init__()
+        super(RefineNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
@@ -63,41 +144,8 @@ class ResNet(nn.Module):
         return x
 
 
-class RefineNetBlock(nn.Module):
-    def __init__(self):
-        super(RefineNetBlock, self).__init__()
-
-    def forward(self, x):
-        pass
-
-
-class RCU(nn.Module):
-    def __init__(self):
-        super(RCU, self).__init__()
-
-    def forward(self, x):
-        pass
-
-
-class MultiFusionBlock(nn.Module):
-    def __init__(self):
-        super(MultiFusionBlock, self).__init__()
-
-    def forward(self, x):
-        pass
-
-
-class ChainedResPool(nn.Module):
-    def __init__(self):
-        super(ChainedResPool, self).__init__()
-
-    def forward(self, x):
-        pass
-
-
-class RefineNet(nn.Module):
-    def __init__(self):
-        super(RefineNet, self).__init__()
-
-    def forward(self, x):
-        pass
+if __name__ == '__main__':
+    from torch.autograd import Variable
+    a = Variable(torch.randn((1, 256, 32, 32)))
+    rcu = ChainedResPool(256)
+    print(rcu(a))

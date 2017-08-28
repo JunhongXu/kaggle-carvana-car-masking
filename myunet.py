@@ -58,7 +58,21 @@ class SoftDiceLoss(nn.Module):
         return score
 
 
-## -------------------------------------------------------------------------------------
+class SoftIoULoss(nn.Module):
+    def __init__(self, weight=None):
+        super(SoftIoULoss, self).__init__()
+
+    def forward(self, logits, targets):
+        batch_size = targets.size(0)
+        probs = F.sigmoid(logits)
+        probs = probs.view(batch_size, -1)
+        targets = targets.view(batch_size, -1)
+        intersection = torch.sum(probs * targets)
+        union = torch.sum((probs + targets) - (probs * targets))
+        iou = intersection / union
+        loss = 1 - iou
+        return loss
+
 
 def make_conv_bn_relu(in_channels, out_channels, kernel_size=3, stride=1, padding=1):
     return [
@@ -1265,23 +1279,27 @@ if __name__ == '__main__':
 
 
     if 1: # BCELoss2d()
-        num_classes = 1
-
-        inputs = torch.randn(batch_size,C,H,W)
-        labels = torch.LongTensor(batch_size,H, W).random_(1).type(torch.FloatTensor)
-
-        net = UNet_1024_5(in_shape=(C,H,W), num_classes=1).cuda().train()
-        net = nn.DataParallel(net)
-        x = Variable(inputs).cuda()
-        y = Variable(labels).cuda()
-        logits = net.forward(x)
-
-        loss = BCELoss2d()(logits, y[0])
-        loss.backward()
-
-        print(type(net))
-        print(net)
-
-        print('logits')
-        print(logits)
+        # num_classes = 1
+        #
+        # inputs = torch.randn(batch_size,C,H,W)
+        # labels = torch.LongTensor(batch_size,H, W).random_(1).type(torch.FloatTensor)
+        #
+        # net = UNet_1024_5(in_shape=(C,H,W), num_classes=1).cuda().train()
+        # net = nn.DataParallel(net)
+        # x = Variable(inputs).cuda()
+        # y = Variable(labels).cuda()
+        # logits = net.forward(x)
+        #
+        # loss = BCELoss2d()(logits, y[0])
+        # loss.backward()
+        #
+        # print(type(net))
+        # print(net)
+        #
+        # print('logits')
+        # print(logits)
+        labels = Variable(torch.FloatTensor(30, 128, 128).random_(2))
+        predictions = Variable(torch.randn(30, 128, 128))
+        loss = SoftIoULoss()
+        print(loss(predictions, labels))
     #input('Press ENTER to continue.')
