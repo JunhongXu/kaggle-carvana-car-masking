@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
@@ -26,11 +27,24 @@ out_h = 1152
 print_it = 20
 interval = 2000
 NUM = 100064
+USE_WEIGHTING = True
 model_name = 'UNET1152_1152SOFIoU'
 BATCH = 4
 DEBUG = False
 
 test_aug_dim = [(1024, 1024), (960, 960), (512, 512)]
+
+
+def calculate_weight(label):
+    a = F.avg_pool2d(label, kernel_size=11, padding=5, stride=1)
+    ind = a.ge(0.01) * a.le(0.99)
+    ind = ind.float()
+    weights = Variable(torch.ones(a.size()))
+    w0 = weights.sum()
+    weights = weights + ind*2
+    w1 = weights.sum()
+    weights = weights/w1*w0
+    return weights
 
 
 def lr_scheduler(optimizer, epoch):
@@ -80,7 +94,8 @@ def train(net):
             label = Variable(label.cuda()) if torch.cuda.is_available() else Variable(label)
             out, logits = net(img)
             # out = out.Long()
-            bce_loss = bce2d(out, label)
+            weight = None if not USE_WEIGHTING else calculate_weight(label)
+            bce_loss = bce2d(out, label, weight=weight)
             loss = bce_loss + softiou(out, label)
             moving_bce_loss += bce_loss.data[0]
 

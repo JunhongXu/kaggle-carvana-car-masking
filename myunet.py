@@ -30,10 +30,11 @@ class BCELoss2d(nn.Module):
         super(BCELoss2d, self).__init__()
         self.bce_loss = nn.BCELoss(weight, size_average)
 
-    def forward(self, logits, targets):
+    def forward(self, logits, targets, weight=None):
         probs        = F.sigmoid(logits)
         probs_flat   = probs.view (-1)
         targets_flat = targets.view(-1).float()
+        self.bce_loss.weight = weight
         return self.bce_loss(probs_flat, targets_flat)
 
         #
@@ -59,10 +60,10 @@ class SoftDiceLoss(nn.Module):
 
 
 class SoftIoULoss(nn.Module):
-    def __init__(self, weight=None):
+    def __init__(self):
         super(SoftIoULoss, self).__init__()
 
-    def forward(self, logits, targets):
+    def forward(self, logits, targets, weight=None):
         batch_size = targets.size(0)
         probs = F.sigmoid(logits)
         probs = probs.view(batch_size, -1)
