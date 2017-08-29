@@ -31,11 +31,12 @@ class BCELoss2d(nn.Module):
         self.bce_loss = nn.BCELoss(weight, size_average)
 
     def forward(self, logits, targets, weight=None):
-        probs        = F.sigmoid(logits)
-        probs_flat   = probs.view (-1)
-        targets_flat = targets.view(-1).float()
-        self.bce_loss.weight = weight
-        return self.bce_loss(probs_flat, targets_flat)
+        w = weight.view(-1)
+        z = logits.view(-1)
+        t = targets.view(-1)
+        loss = w*z.clamp(min=0) - w*z*t + w*torch.log(1 + torch.exp(-z.abs()))
+        loss = loss.sum()/w.sum()
+        return loss
 
         #
         # logits_flat  = logits.view (-1)

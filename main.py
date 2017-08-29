@@ -19,7 +19,7 @@ from math import ceil
 from matplotlib import pyplot as plt
 
 EPOCH = 70
-START_EPOCH = 21
+START_EPOCH = 27
 in_h = 1152
 in_w = 1152
 out_w = 1152
@@ -39,7 +39,7 @@ def calculate_weight(label):
     a = F.avg_pool2d(label, kernel_size=11, padding=5, stride=1)
     ind = a.ge(0.01) * a.le(0.99)
     ind = ind.float()
-    weights = Variable(torch.ones(a.size()))
+    weights = Variable(torch.ones(a.size()).cuda())
     w0 = weights.sum()
     weights = weights + ind*2
     w1 = weights.sum()
