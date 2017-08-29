@@ -19,7 +19,7 @@ from math import ceil
 from matplotlib import pyplot as plt
 
 EPOCH = 70
-START_EPOCH = 0
+START_EPOCH = 21
 in_h = 1152
 in_w = 1152
 out_w = 1152
