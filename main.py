@@ -8,7 +8,7 @@ from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloa
     mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
-from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
+from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 import cv2
 from scipy.misc import imread
 import pandas as pd
@@ -19,32 +19,23 @@ from math import ceil
 from matplotlib import pyplot as plt
 
 EPOCH = 70
-START_EPOCH = 27
+START_EPOCH = 51
 in_h = 1152
 in_w = 1152
 out_w = 1152
 out_h = 1152
 print_it = 20
-interval = 2000
+interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
 model_name = 'UNET1152_1152SOFIoU'
 BATCH = 4
 DEBUG = False
 
-test_aug_dim = [(1024, 1024), (960, 960), (512, 512)]
+test_aug_dim = [(1152, 1152)]
 
 
-def calculate_weight(label):
-    a = F.avg_pool2d(label, kernel_size=11, padding=5, stride=1)
-    ind = a.ge(0.01) * a.le(0.99)
-    ind = ind.float()
-    weights = Variable(torch.ones(a.size()).cuda())
-    w0 = weights.sum()
-    weights = weights + ind*2
-    w1 = weights.sum()
-    weights = weights/w1*w0
-    return weights
+
 
 
 def lr_scheduler(optimizer, epoch):
@@ -52,10 +43,10 @@ def lr_scheduler(optimizer, epoch):
         lr = 0.005
     elif 20 < epoch<= 40:
         lr = 0.001
-    elif 30 < epoch <= 40:
-        lr = 0.0007
+    elif 30 < epoch <= 50:
+        lr = 0.001
     else:
-        lr = 0.0005
+        lr = 0.0007
     for param in optimizer.param_groups:
         param['lr'] = lr
 
@@ -153,26 +144,26 @@ def test(net):
 
     times = ceil(NUM/interval)
 
-    for t in range(int(times)):
+    for t in range(0, int(times)):
         s = t * interval
         e = (t+1) * interval
         if t == (times -1):
             e = NUM
-        total_preds = np.zeros((e-s, out_h, out_w))
-        for (_in_h, _in_w) in test_aug_dim:
-            test_loader = get_test_dataloader(batch_size=12, H=_in_h, W=_in_w, start=s, end=e, out_h=out_h, out_w=out_w,
+        # total_preds = np.zeros((e-s, out_h, out_w))
+        # for (_in_h, _in_w) in test_aug_dim:
+        test_loader = get_test_dataloader(batch_size=20, H=in_h, W=in_w, start=s, end=e, out_h=out_h, out_w=out_w,
                                               mean=None, std=None)
-            pred_labels, predictions = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
-            total_preds = predictions + total_preds
-            del predictions
-            del pred_labels
+        pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
+        # total_preds = predictions + total_preds
+          #  del predictions
+          #  del pred_labels
         # total_preds = total_preds >= ceil(len(test_aug_dim)/2)
         # total_preds = expit(total_preds)
         # print(total_preds.shape)
         # total_preds = total_preds + predictions
-        total_preds = total_preds / len(test_aug_dim)
+        # total_preds = total_preds / len(test_aug_dim)
         if DEBUG:
-            mask = cv2.resize((total_preds[0] > 0.5).astype(np.uint8),  (1918, 1280))
+            mask = cv2.resize((pred_labels[0]).astype(np.uint8),  (1918, 1280))
             mask = np.ma.masked_where(mask==0, mask)
             plt.imshow(cv2.resize(cv2.imread(test_loader.dataset.img_names[0]), (1918, 1280)))
             plt.imshow(mask, 'jet', alpha=0.6)
@@ -183,7 +174,8 @@ def test(net):
         names = glob.glob(CARANA_DIR+'/test/*.jpg')[s:e]
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
-        save_mask(mask_imgs=(total_preds > 0.5).astype(np.uint8), model_name=model_name, names=names)
+        save_mask(mask_imgs=pred_labels, model_name=model_name, names=names)
+        del pred_labels
 
 
 
@@ -210,11 +202,11 @@ if __name__ == '__main__':
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
-                                                     out_w=out_w, mean=None, std=None), \
-                                get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-                                                     out_h=out_h, out_w=out_w, mean=None, std=None)
-    train(net)
+    # valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
+    #                                                  out_w=out_w, mean=None, std=None), \
+    #                             get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
+    # train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #    net.cuda()
@@ -235,5 +227,5 @@ if __name__ == '__main__':
 
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
 
-    # test(net)
-    # do_submisssion()
+    test(net)
+    do_submisssion()

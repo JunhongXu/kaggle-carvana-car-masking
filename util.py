@@ -6,13 +6,25 @@ from torch.autograd import Variable
 import numpy as np
 from torch.nn import functional as F
 import glob
+import torch
 
+
+def calculate_weight(label):
+    a = F.avg_pool2d(label, kernel_size=11, padding=5, stride=1)
+    ind = a.ge(0.01) * a.le(0.99)
+    ind = ind.float()
+    weights = Variable(torch.ones(a.size()).cuda())
+    w0 = weights.sum()
+    weights = weights + ind*2
+    w1 = weights.sum()
+    weights = weights/w1*w0
+    return weights
 
 def pred(dataloader, net, upsample=None, verbose=False):
     net.eval()
     total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
     pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
-    predictions = np.empty((total_size, H, W))
+    # predictions = np.empty((total_size, H, W))
     prev = 0
     for idx, (img, _) in enumerate(dataloader):
         batch_size = img.size(0)
@@ -29,11 +41,11 @@ def pred(dataloader, net, upsample=None, verbose=False):
         l = np.squeeze(l)
         scores = np.squeeze(scores)
         pred_labels[prev: prev+batch_size] = l
-        predictions[prev: prev+batch_size] = scores
+        # predictions[prev: prev+batch_size] = scores
         prev = prev + batch_size
         if verbose:
             print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
-    return pred_labels, predictions
+    return pred_labels# , # predictions
 
 
 def evaluate(dataloader, net, criterion):
@@ -43,13 +55,13 @@ def evaluate(dataloader, net, criterion):
     for img, label in dataloader:
         batch_size = img.size(0)
         img = Variable(img.cuda(), volatile=True)
-        label = label.long()
+        label = label.float()
         label = Variable(label.cuda(), volatile=True)
         out, logits = net(img)
         # print(logtis.data, label.data)
         # log_logits = F.log_softmax(logtis)
         # print(log_logits)
-        loss = criterion(out, label)
+        loss = criterion(out, label, calculate_weight(label))
         avg_loss = loss.data[0]*batch_size + avg_loss
     return avg_loss/total_size
 
