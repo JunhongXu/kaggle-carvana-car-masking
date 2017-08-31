@@ -8,7 +8,7 @@ from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloa
     mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
-from refinenet import RefineNet1024, BasicBlock
+from refinenet import RefineNet1024, BasicBlock, Bottleneck
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 import cv2
 from scipy.misc import imread
@@ -23,14 +23,14 @@ EPOCH = 70
 START_EPOCH = 0
 in_h = 1024
 in_w = 1024
-out_w = 512
-out_h = 512
+out_w = 1024
+out_h = 1024
 print_it = 20
 interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenet_1024_512'
-BATCH = 2
+model_name = 'refinenet_1024'
+BATCH = 4
 DEBUG = False
 
 test_aug_dim = [(1152, 1152)]
@@ -199,7 +199,7 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = RefineNet1024(BasicBlock, [2, 2, 2, 2])
+    net = RefineNet1024(Bottleneck, [3, 4, 6, 3])
     net.load_params()
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))

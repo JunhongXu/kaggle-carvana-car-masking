@@ -187,7 +187,7 @@ class RefineNet1024(nn.Module):
         return nn.Sequential(*layers)
 
     def load_params(self):
-        pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
+        pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
         model_dict = self.state_dict()
         model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
         self.load_state_dict(model_dict)
@@ -197,7 +197,6 @@ class RefineNet1024(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
-        print(x.size())
 
         x1 = self.layer1(x)
         x2 = self.layer2(x1)
@@ -209,7 +208,6 @@ class RefineNet1024(nn.Module):
         out3 = self.refinenet3(x4)
         out3 = F.upsample(out3, scale_factor=2, mode='bilinear')
         out3 = out3 + self.trans3(x3)
-        print(out3.size())
 
         out2 = self.refinenet2(out3)
         out2 = F.upsample(out2, scale_factor=2, mode='bilinear')
@@ -233,14 +231,10 @@ def test_refine_block(in_feat, out_feat, size):
 
 if __name__ == '__main__':
     from torch.autograd import Variable
-    # a = Variable(torch.randn((1, 256, 32, 32)))
-    # rcu = ChainedResPool(256)
-    # print(rcu(a))
-    # test_refine_block([20, 32], [25, 32], 20)
-    a = Variable(torch.randn((2, 3, 1024, 1024)))
-    resnet = RefineNet1024(Bottleneck, [3, 4, 6, 3])
+    a = Variable(torch.randn((6, 3, 1024, 1024))).cuda()
+    resnet = RefineNet1024(Bottleneck, [3, 4, 6, 3]).cuda()
     # resnet.load_params()
-    # resnet = nn.DataParallel(resnet)
+    resnet = nn.DataParallel(resnet)
     # resnet.cuda()
     # print(resnet(a))
     print(resnet(a))
