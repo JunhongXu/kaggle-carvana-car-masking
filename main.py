@@ -152,7 +152,7 @@ def test(net):
             e = NUM
         # total_preds = np.zeros((e-s, out_h, out_w))
         # for (_in_h, _in_w) in test_aug_dim:
-        test_loader = get_test_dataloader(batch_size=20, H=in_h, W=in_w, start=s, end=e, out_h=out_h, out_w=out_w,
+        test_loader = get_test_dataloader(batch_size=32, H=in_h, W=in_w, start=s, end=e, out_h=out_h, out_w=out_w,
                                               mean=None, std=None)
         pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
         # total_preds = predictions + total_preds
@@ -203,12 +203,12 @@ if __name__ == '__main__':
     net.load_params()
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
-    # from scipy.misc import imshow
-    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=4, H=in_h, W=in_w, out_h=out_h,
-                                                     out_w=out_w, mean=None, std=None), \
-                                get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-                                                     out_h=out_h, out_w=out_w, mean=None, std=None)
-    train(net)
+    # # from scipy.misc import imshow
+    # valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=4, H=in_h, W=in_w, out_h=out_h,
+    #                                                  out_w=out_w, mean=None, std=None), \
+    #                             get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
+    # train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #    net.cuda()
@@ -229,5 +229,5 @@ if __name__ == '__main__':
 
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
     #
-    # test(net)
-    # do_submisssion()
+    test(net)
+    do_submisssion()
