@@ -8,6 +8,7 @@ from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloa
     mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
+from refinenet import RefineNet1024, BasicBlock
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 import cv2
 from scipy.misc import imread
@@ -19,17 +20,17 @@ from math import ceil
 from matplotlib import pyplot as plt
 
 EPOCH = 70
-START_EPOCH = 51
-in_h = 1152
-in_w = 1152
-out_w = 1152
-out_h = 1152
+START_EPOCH = 0
+in_h = 1024
+in_w = 1024
+out_w = 512
+out_h = 512
 print_it = 20
 interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'UNET1152_1152SOFIoU'
-BATCH = 4
+model_name = 'refinenet_1024_512'
+BATCH = 2
 DEBUG = False
 
 test_aug_dim = [(1152, 1152)]
@@ -39,9 +40,9 @@ test_aug_dim = [(1152, 1152)]
 
 
 def lr_scheduler(optimizer, epoch):
-    if 0 <= epoch <= 20:
+    if 0 <= epoch <= 10:
         lr = 0.005
-    elif 20 < epoch<= 40:
+    elif 10 < epoch<= 30:
         lr = 0.001
     elif 30 < epoch <= 50:
         lr = 0.001
@@ -52,7 +53,7 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
-    optimizer = SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
+    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
     # softdice = SoftDiceLoss()
     softiou = SoftIoULoss()
@@ -115,7 +116,7 @@ def train(net):
         if e % 1 == 0:
             # validate
             smooth_loss = moving_bce_loss/(idx+1)
-            pred_labels, _ = pred(valid_loader, net)
+            pred_labels = pred(valid_loader, net)
             valid_loss = evaluate(valid_loader, net, bce2d)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
@@ -198,15 +199,16 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = UNet_1024_5((3, in_h, in_w), 1)
+    net = RefineNet1024(BasicBlock, [2, 2, 2, 2])
+    net.load_params()
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # from scipy.misc import imshow
-    # valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=6, H=in_h, W=in_w, out_h=out_h,
-    #                                                  out_w=out_w, mean=None, std=None), \
-    #                             get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
-    # train(net)
+    valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=4, H=in_h, W=in_w, out_h=out_h,
+                                                     out_w=out_w, mean=None, std=None), \
+                                get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+                                                     out_h=out_h, out_w=out_w, mean=None, std=None)
+    train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #    net.cuda()
@@ -226,6 +228,6 @@ if __name__ == '__main__':
     # save mask
 
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
-
-    test(net)
-    do_submisssion()
+    #
+    # test(net)
+    # do_submisssion()

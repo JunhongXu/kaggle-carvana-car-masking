@@ -1,19 +1,24 @@
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 import math
 import numpy as np
-from torchvision.models.resnet import Bottleneck
+from torchvision.models.resnet import Bottleneck, BasicBlock
 from torchvision.models.resnet import model_urls, model_zoo
 
 
 class RefineNetBlock(nn.Module):
     def __init__(self, input_feats, output_feats, feat_size):
         super(RefineNetBlock, self).__init__()
-        self.rcu_units = []
-        for input_feat, out_feat in zip(input_feats, output_feats):
-            rcu_1 = RCU(input_feat, out_feat)
-            rcu_2 = RCU(out_feat, out_feat)
-            self.rcu_units.append((rcu_1, rcu_2))
+        if len(input_feats) == 2:
+            self.rcu1_1 = RCU(input_feats[0], output_feats[0])
+            self.rcu1_2 = RCU(output_feats[0], output_feats[0])
+
+            self.rcu2_1 = RCU(input_feats[1], output_feats[1])
+            self.rcu2_2 = RCU(output_feats[1], output_feats[1])
+        else:
+            self.rcu1_1 = RCU(input_feats[0], output_feats[0])
+            self.rcu1_2 = RCU(output_feats[0], output_feats[0])
 
         if len(input_feats) > 1:
             self.fusion_block = FusionBlock(output_feats[0], output_feats[1], feat_size)
@@ -22,15 +27,12 @@ class RefineNetBlock(nn.Module):
 
     def forward(self, *x):
         if len(x) == 1:
-            for (rcu_1, rcu_2) in self.rcu_units:
-                x = rcu_1(x[0])
-                x = rcu_2(x)
+            x = self.rcu1_1(x[0])
+            x = self.rcu1_2(x)
         else:
-            xs = []
-            for path, _x in enumerate(x):
-                rcu_1, rcu_2 = self.rcu_units[path]
-                xs.append(rcu_2(rcu_1(_x)))
-            x = self.fusion_block(*xs)
+            x1, x2 = x
+            rcu1, rcu2 = self.rcu1_2(self.rcu1_1(x1)), self.rcu2_2(self.rcu2_1(x2))
+            x = self.fusion_block(rcu1, rcu2)
 
         return self.pooling(x)
 
@@ -67,7 +69,7 @@ class RCU(nn.Module):
         out = self.conv2(out)
 
         x = self.conv3(x)
-        x = self.bn3(x)
+        # x = self.bn3(x)
         out += x
         return out
 
@@ -102,7 +104,6 @@ class ChainedResPool(nn.Module):
     def forward(self, x):
         x = self.relu(x)
         out1 = self.pool1(x)
-        print(out1.size())
         out1 = self.conv1(out1)
 
         out = x + out1
@@ -128,23 +129,24 @@ class RefineNet1024(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2) # 1024*64*64
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2) # 2048*32*32
 
-        self.refinenet4 = RefineNetBlock([2048], [512], 32*4)
-        self.refinenet3 = RefineNetBlock([512, 1024], [256, 256], 64*4)
-        self.refinenet2 = RefineNetBlock([256, 512], [256, 256], 128*4)
-        self.refinenet1 = RefineNetBlock([256, 256], [256, 256], 256*4)
+        self.set_requires_grad(self.conv1)
+        self.set_requires_grad(self.bn1)
+        self.set_requires_grad(self.layer1)
+        self.set_requires_grad(self.layer2)
+        self.set_requires_grad(self.layer3)
+        self.set_requires_grad(self.layer4)
+
+        self.refinenet4 = RefineNetBlock([512], [512], 32*2)
+        self.refinenet3 = RefineNetBlock([512, 256], [256, 256], 64*2)
+        self.refinenet2 = RefineNetBlock([256, 128], [256, 256], 128*2)
+        self.refinenet1 = RefineNetBlock([256, 64], [256, 256], 256*2)
 
         self.rcu1 = RCU(input_feats=256, out_feats=32)
         self.rcu2 = RCU(input_feats=32, out_feats=1)
-        # self.avgpool = nn.AvgPool2d(7)
-        # self.fc = nn.Linear(512 * block.expansion, num_classes)
 
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
+    def set_requires_grad(self, layer):
+        for param in layer.parameters():
+            param.requires_grad = False
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -164,7 +166,7 @@ class RefineNet1024(nn.Module):
         return nn.Sequential(*layers)
 
     def load_params(self):
-        pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
+        pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
         model_dict = self.state_dict()
         model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
         self.load_state_dict(model_dict)
@@ -176,22 +178,14 @@ class RefineNet1024(nn.Module):
         x = self.maxpool(x)
 
         x1 = self.layer1(x)
-        print(x1.size())
         x2 = self.layer2(x1)
-        print(x2.size())
         x3 = self.layer3(x2)
-        print(x3.size())
         x4 = self.layer4(x3)
-        print(x4.size())
 
         x = self.refinenet4(x4)
-        print(x.size())
         x = self.refinenet3(x, x3)
-        print(x.size())
         x = self.refinenet2(x, x2)
-        print(x.size())
         x = self.refinenet1(x, x1)
-        print(x.size())
 
         x = self.rcu1(x)
         x = self.rcu2(x)
@@ -199,7 +193,7 @@ class RefineNet1024(nn.Module):
         # x = x.view(x.size(0), -1)
         # x = self.fc(x)
 
-        return x
+        return x, F.sigmoid(x)
 
 
 def test_refine_block(in_feat, out_feat, size):
@@ -215,8 +209,11 @@ if __name__ == '__main__':
     # rcu = ChainedResPool(256)
     # print(rcu(a))
     # test_refine_block([20, 32], [25, 32], 20)
-    a = Variable(torch.randn((1, 3, 512, 512)))
-    resnet = RefineNet1024(Bottleneck, [3, 4, 6, 3])
+    a = Variable(torch.randn((2, 3, 1024, 1024)).cuda())
+    resnet = RefineNet1024(BasicBlock, [2, 2, 2, 2])
     resnet.load_params()
+    resnet = nn.DataParallel(resnet)
+    resnet.cuda()
     # print(resnet(a))
+    print(resnet(a))
     print(resnet)
