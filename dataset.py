@@ -31,7 +31,7 @@ std = [
 
 
 class CarvanaDataSet(Dataset):
-    def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None,
+    def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None, hq=True,
                  test=False, preload=False, mean=None, std=None, start=None, end=None):
         # TODO: add direction information????
         super(CarvanaDataSet, self).__init__()
@@ -52,26 +52,24 @@ class CarvanaDataSet(Dataset):
         if split is not None:
             with open(CARANA_DIR+'/split/'+split) as f:
                 self.img_names = f.readlines()
-            self.img_names = [name.strip('\n') for name in self.img_names]
-
-
-        if preload:
-            self.imgs = np.empty((len(self.img_names), H, W, 3))
-            for i, name in enumerate(self.img_names):
-                img = cv2.imread(CARANA_DIR+'/train/train/{}.jpg'.format(name))
-                img = cv2.resize(img, (W, H))
-                self.imgs[i] = img
-
-            if not test:
-                self.labels = np.empty((len(self.img_names), out_h, out_w))
+                self.img_names = [name.strip('\n') for name in self.img_names]
+        if not test:
+            self.load_dir = CARANA_DIR + '/train/train_hq/' if hq else CARANA_DIR + '/train/train/'
+            if preload:
+                self.imgs = np.empty((len(self.img_names), H, W, 3))
                 for i, name in enumerate(self.img_names):
-                    l = Image.open(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(name)).resize((out_w, out_h))
-                    self.labels[i] = l
+                    img = cv2.imread(self.load_dir + '{}.jpg'.format(name))
+                    img = cv2.resize(img, (W, H))
+                    self.imgs[i] = img
 
-        if test:
-            self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')
+                    self.labels = np.empty((len(self.img_names), out_h, out_w))
+                    for i, name in enumerate(self.img_names):
+                        l = Image.open(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(name)).resize((out_w, out_h))
+                        self.labels[i] = l
+        else:
+            self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if hq else CARANA_DIR+'/test_hq/*.jpg')
             if start is not None and end is not None:
-                self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg')[start:end]
+                self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if hq else CARANA_DIR+'/test_hq/*.jpg')[start:end]
         print('Number of samples {}'.format(len(self.img_names)))
         print('Total loading time %.2f' % (time.time() - t))
         print('Done Loading!')
@@ -99,9 +97,9 @@ class CarvanaDataSet(Dataset):
                 img = self.imgs[index]
                 label = self.labels[index]
             else:
-                img_name = CARANA_DIR+'/train/'.format(self.img_names[index])
-                img = cv2.imread(img_name+'train/{}.jpg'.format(self.img_names[index]))
-                label = np.array(Image.open(img_name+'train_masks/{}_mask.gif'.format(self.img_names[index])))
+                # img_name = CARANA_DIR+'/train/'.format(self.img_names[index])
+                img = cv2.imread(self.load_dir+'{}.jpg'.format(self.img_names[index]))
+                label = np.array(Image.open(CARANA_DIR+'train/train_masks/{}_mask.gif'.format(self.img_names[index])))
                 label = np.array(label)
             if self.transform is not None:
                 img, label = self.transform((img, label))
@@ -166,6 +164,20 @@ class RandomHueSaturationValue(object):
             image = cv2.merge((h, s, v))
             image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
         return image, l
+
+
+# class RandomBrightness(object):
+#     def __init__(self, limit=(-76.5, 76.5), u=0.5):
+#         self.limit = limit
+#         self.u = u
+#
+#     def __call__(self, data):
+#         img, l = data
+#         if random.random() < 0.5:
+#             alpha = 255.0 + random.uniform(self.limit[0], self.limit[1])
+#             img = alpha*img
+#             img = np.clip(img, 0., 255.)
+#         return img, l
 
 
 class RandomCrop(object):
