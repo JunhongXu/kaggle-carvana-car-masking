@@ -149,6 +149,13 @@ class HorizontalFlip(object):
         return img, l
 
 
+class RandomRotate(object):
+    def __call__(self, data):
+        img, l = data
+        if random.random() < 0.5:
+            pass
+
+
 class RandomHueSaturationValue(object):
     def __init__(self, hue_shift_limit=(-50, 50), sat_shift_limit=(-5, 5), val_shift_limit=(-15, 15)):
         self.hue_shift_limit = hue_shift_limit
@@ -176,7 +183,7 @@ class RandomTransposeColor(object):
         img, l = data
         if random.random() < 0.5:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return img, l`
+        return img, l
 
 
 class RandomGray(object):
