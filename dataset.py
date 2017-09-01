@@ -153,7 +153,7 @@ class HorizontalFlip(object):
 class RandomRotate(object):
     def __call__(self, data, shift_limit=(-0.0625, 0.0625), scale_limit=(1 / 1.1, 1.1),
                                        rotate_limit=(-30, 30), aspect_limit=(1, 1), borderMode=cv2.BORDER_REFLECT_101,
-                                       u=0.3):
+                                       u=0.5):
 
         # cv2.BORDER_REFLECT_101  cv2.BORDER_CONSTANT
         img, l = data
@@ -194,7 +194,7 @@ class RandomHueSaturationValue(object):
         self.sat_shift_limit = sat_shift_limit
         self.val_shift_limit = val_shift_limit
 
-    def __call__(self, data, u=0.3):
+    def __call__(self, data, u=0.5):
         image, l = data
         if random.random() < u:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
