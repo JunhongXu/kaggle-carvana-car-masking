@@ -170,13 +170,25 @@ class RandomHueSaturationValue(object):
             image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
         return image, l
 
+
+class RandomTransposeColor(object):
+    def __call__(self, data):
+        img, l = data
+        if random.random() < 0.5:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        return img, l`
+
+
 class RandomGray(object):
     def __call__(self, data):
         img, l = data
         if random.random() < 0.5:
             coeff = np.array([.7154, .0721, .2125])
-            img = np.sum(img * coeff, 2)
-
+            gray_img = np.sum(img * coeff, 2)
+            img[:, :, 0] = gray_img
+            img[:, :, 1] = gray_img
+            img[:, :, 2] = gray_img
+        return img, l
 
 
 # class RandomBrightness(object):
