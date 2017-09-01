@@ -62,14 +62,19 @@ class CarvanaDataSet(Dataset):
                     img = cv2.resize(img, (W, H))
                     self.imgs[i] = img
 
+                    # self.labels = np.empty((len(self.img_names), out_h, out_w))
+                    # for i, name in enumerate(self.img_names):
+                    #     l = Image.open(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(name)).resize((out_w, out_h))
+                    #     self.labels[i] = l
+            if 'valid' in split:
                     self.labels = np.empty((len(self.img_names), out_h, out_w))
                     for i, name in enumerate(self.img_names):
                         l = Image.open(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(name)).resize((out_w, out_h))
                         self.labels[i] = l
         else:
-            self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if hq else CARANA_DIR+'/test_hq/*.jpg')
+            self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if not hq else CARANA_DIR+'/test_hq/*.jpg')
             if start is not None and end is not None:
-                self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if hq else CARANA_DIR+'/test_hq/*.jpg')[start:end]
+                self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if not hq else CARANA_DIR+'/test_hq/*.jpg')[start:end]
         print('Number of samples {}'.format(len(self.img_names)))
         print('Total loading time %.2f' % (time.time() - t))
         print('Done Loading!')
@@ -99,7 +104,7 @@ class CarvanaDataSet(Dataset):
             else:
                 # img_name = CARANA_DIR+'/train/'.format(self.img_names[index])
                 img = cv2.imread(self.load_dir+'{}.jpg'.format(self.img_names[index]))
-                label = np.array(Image.open(CARANA_DIR+'train/train_masks/{}_mask.gif'.format(self.img_names[index])))
+                label = np.array(Image.open(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(self.img_names[index])))
                 label = np.array(label)
             if self.transform is not None:
                 img, label = self.transform((img, label))
@@ -145,7 +150,7 @@ class HorizontalFlip(object):
 
 
 class RandomHueSaturationValue(object):
-    def __init__(self, hue_shift_limit=(-100, 100), sat_shift_limit=(-155, 155), val_shift_limit=(-155, 155)):
+    def __init__(self, hue_shift_limit=(-50, 50), sat_shift_limit=(-5, 5), val_shift_limit=(-15, 15)):
         self.hue_shift_limit = hue_shift_limit
         self.sat_shift_limit = sat_shift_limit
         self.val_shift_limit = val_shift_limit
@@ -164,6 +169,14 @@ class RandomHueSaturationValue(object):
             image = cv2.merge((h, s, v))
             image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
         return image, l
+
+class RandomGray(object):
+    def __call__(self, data):
+        img, l = data
+        if random.random() < 0.5:
+            coeff = np.array([.7154, .0721, .2125])
+            img = np.sum(img * coeff, 2)
+
 
 
 # class RandomBrightness(object):
@@ -196,10 +209,10 @@ class RandomCrop(object):
         return img, l
 
 
-def get_valid_dataloader(batch_size, split, H=512, W=512, out_h=1280, out_w=1918, num_works=0, mean=mean, std=std):
+def get_valid_dataloader(batch_size, split, H=512, W=512, out_h=1280, out_w=1918, preload=True, num_works=0, mean=mean, std=std):
     return DataLoader(batch_size=batch_size, num_workers=num_works,
         dataset=CarvanaDataSet(
-            split, test=False, H=H, W=W, preload=True, out_h=out_h, out_w=out_w,
+            split, test=False, H=H, W=W, preload=preload, out_h=out_h, out_w=out_w,
             transform=None, std=std, mean=mean
         )
 

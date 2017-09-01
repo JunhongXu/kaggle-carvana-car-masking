@@ -7,6 +7,7 @@ import numpy as np
 from torch.nn import functional as F
 import glob
 import torch
+from random import shuffle
 
 
 def calculate_weight(label):
@@ -100,7 +101,8 @@ def save_mask(mask_imgs, model_name, names):
 
 def split(num=None):
     path = os.path.join(CARANA_DIR, 'split')
-    img_names = sorted(glob.glob(CARANA_DIR+'/train/train/*.jpg'))
+    img_names = glob.glob(CARANA_DIR+'/train/train/*.jpg')
+    shuffle(img_names)
     if not os.path.exists(path):
         os.makedirs(path)
     if num is not None:
@@ -161,15 +163,15 @@ class Logger(object):
 if __name__ == '__main__':
     from scipy.misc import imread
     import cv2
-   # split(5000)
-    imgs = glob.glob(CARANA_DIR+'/train/train_masks/*.gif')
-    img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
-    orig = glob.glob(CARANA_DIR+'/test/*.jpg')
-    for img, img_, orig_ in zip(imgs, img_2, orig):
-        img = (cv2.resize(imread(img), (960, 640)))
-        img_ = (cv2.resize(imread(img_), (960, 640)))
-        orig_ = (cv2.resize(imread(orig_), (960, 640)))
-        cv2.imshow('f', img*100)
-        cv2.imshow('2', img_*100)
-        cv2.imshow('o', orig_)
-        cv2.waitKey()
+    split(4788)
+   #  imgs = glob.glob(CARANA_DIR+'/train/train_masks/*.gif')
+   #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
+   #  orig = glob.glob(CARANA_DIR+'/test/*.jpg')
+   #  for img, img_, orig_ in zip(imgs, img_2, orig):
+   #      img = (cv2.resize(imread(img), (960, 640)))
+   #      img_ = (cv2.resize(imread(img_), (960, 640)))
+   #      orig_ = (cv2.resize(imread(orig_), (960, 640)))
+   #      cv2.imshow('f', img*100)
+   #      cv2.imshow('2', img_*100)
+   #      cv2.imshow('o', orig_)
+   #      cv2.waitKey()

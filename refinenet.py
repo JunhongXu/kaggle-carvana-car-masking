@@ -7,9 +7,9 @@ from torchvision.models.resnet import Bottleneck, BasicBlock
 from torchvision.models.resnet import model_urls, model_zoo
 
 
-def make_conv_bn_relu(input_feat, output_feat):
+def make_conv_bn_relu(input_feat, output_feat, kernel_size=3, padding=1):
 
-    layer = (nn.Conv2d(input_feat, output_feat, kernel_size=3, stride=1, padding=1, bias=False),
+    layer = (nn.Conv2d(input_feat, output_feat, kernel_size=kernel_size, stride=1, padding=padding, bias=False),
              nn.BatchNorm2d(output_feat), nn.ReLU())
 
     return layer
@@ -144,25 +144,25 @@ class RefineNet1024(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2) # 1024*64*64
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2) # 2048*32*32
 
-        self.middle = nn.Sequential(*make_conv_bn_relu(2048, 1024))     # 1024*32*32
+        self.middle = nn.Sequential(*make_conv_bn_relu(2048, 1024, 1, padding=0))     # 1024*32*32
+        self.maxpool2 = nn.MaxPool2d(2, 2)                                # 1024*16*16
 
-        self.refinenet3 = RCU(1024, 512)       # 512*64*64
-        self.trans3 = nn.Sequential(*make_conv_bn_relu(1024, 512))
+        self.refinenet3 = RCU(2048, 512)       # 512*64*64
+        self.trans3 = nn.Sequential(*make_conv_bn_relu(1024, 1024, 1, padding=0))
 
-        self.refinenet2 = RCU(512, 256)        # 256*128*128
-        self.trans2 = nn.Sequential(*make_conv_bn_relu(512, 256))
+        self.refinenet2 = RCU(1024, 256)        # 256*128*128
+        self.trans2 = nn.Sequential(*make_conv_bn_relu(512, 512, 1, padding=0))
 
-        self.refinenet1 = RCU(256, 64)         # 64*256*256
-        self.trans1 = nn.Sequential(*make_conv_bn_relu(256, 64))
+        self.refinenet1 = RCU(512, 64)         # 64*256*256
+        self.trans1 = nn.Sequential(*make_conv_bn_relu(256, 256, 1, padding=0))
 
         self.refinenet0 = RCU(64, 64)          # 64*512*512
-        self.trans0 = nn.Sequential(*make_conv_bn_relu(64, 64))
+        self.trans0 = nn.Sequential(*make_conv_bn_relu(64, 64, 1, padding=0))
 
         self.final = nn.Sequential(
             *make_conv_bn_relu(64, 32),
             *make_conv_bn_relu(32, 16),
             nn.Upsample(scale_factor=2, mode='bilinear'),
-
             nn.Conv2d(16, 1, kernel_size=3, stride=1, padding=1)
         )
 
@@ -187,8 +187,8 @@ class RefineNet1024(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def load_params(self):
-        pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
+    def load_params(self, resnet='resnet50'):
+        pretrained_dict = model_zoo.load_url(model_urls[resnet])
         model_dict = self.state_dict()
         model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
         self.load_state_dict(model_dict)
@@ -197,30 +197,35 @@ class RefineNet1024(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x)
+        x = self.maxpool(x)     # 64*256*256
 
-        x1 = self.layer1(x)
-        x2 = self.layer2(x1)
-        x3 = self.layer3(x2)
-        x4 = self.layer4(x3)
+        x1 = self.layer1(x)     # 128*256*256
+        x2 = self.layer2(x1)    # 512*128*128
+        x3 = self.layer3(x2)    # 1024*64*64
+        x4 = self.layer4(x3)    # 2048*32*32
 
-        x4 = self.middle(x4)
+        x4 = self.middle(x4)    # 1024*32*32
 
-        out = self.refinenet3(x4)
-        out = F.upsample(out, scale_factor=2, mode='bilinear')
-        out = out + self.trans3(x3)
+        out = F.upsample(x4, scale_factor=2, mode='bilinear')   # 1024*64*64
+        x3 = self.trans3(x3)
+        out = torch.cat((x3, out), 1)   # 2048*64*64
+        out = self.refinenet3(out)      # 512*64*64
 
-        out = self.refinenet2(out)
-        out = F.upsample(out, scale_factor=2, mode='bilinear')
-        out = out + self.trans2(x2)
+        out = F.upsample(out, scale_factor=2, mode='bilinear')  # 512*128*128
+        x2 = self.trans2(x2)
+        out = torch.cat((x2, out), 1)                           # 1024*128*128
+        out = self.refinenet2(out)                              # 256*128*128
 
-        out = self.refinenet1(out)
-        out = F.upsample(out, scale_factor=2, mode='bilinear')
-        out = out + self.trans1(x1)
+        out = F.upsample(out, scale_factor=2, mode='bilinear')  # 256*256*256
+        x1 = self.trans1(x1)
+        out = torch.cat((x1, out), 1)                           # 512*256*256
+        out = self.refinenet1(out)                              # 64*256*256
 
-        out = self.refinenet0(out)
-        out = out + self.trans0(x)
-        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        # out = F.upsample(out, scale_factor=2, mode='bilinear')  # 64*512*512
+        x = self.trans0(x)
+        out = x + out
+        out = self.refinenet0(out)                              # 64*256*256
+        out = F.upsample(out, mode='bilinear', scale_factor=2)
 
         out = self.final(out)
 
@@ -236,10 +241,10 @@ def test_refine_block(in_feat, out_feat, size):
 
 if __name__ == '__main__':
     from torch.autograd import Variable
-    a = Variable(torch.randn((1, 3, 1024, 1024)))
-    resnet = RefineNet1024(Bottleneck, [3, 4, 6, 3])
+    a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
+    resnet = RefineNet1024(Bottleneck, [3, 4, 6, 3]).cuda()
     # resnet.load_params()
-    # resnet = nn.DataParallel(resnet)
+    resnet = nn.DataParallel(resnet)
     # resnet.cuda()
     # print(resnet(a))
     print(resnet(a))

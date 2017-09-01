@@ -25,17 +25,15 @@ in_h = 1024
 in_w = 1024
 out_w = 1024
 out_h = 1024
-print_it = 20
+print_it = 30
 interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenet_1024'
+model_name = 'refinenetv4_1024_hq'
 BATCH = 4
 DEBUG = False
 
 test_aug_dim = [(1152, 1152)]
-
-
 
 
 
@@ -200,15 +198,16 @@ def do_submisssion():
 
 if __name__ == '__main__':
     net = RefineNet1024(Bottleneck, [3, 4, 6, 3])
-    net.load_params()
+    net.load_params('resnet50')
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
     # # from scipy.misc import imshow
-    # valid_loader, train_loader = get_valid_dataloader(split='valid-88', batch_size=4, H=in_h, W=in_w, out_h=out_h,
-    #                                                  out_w=out_w, mean=None, std=None), \
-    #                             get_train_dataloader(split='train-5000', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
-    # train(net)
+    valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=4, H=in_h, W=in_w, out_h=out_h,
+                                                      preload=False, num_works=2,
+                                                      out_w=out_w, mean=None, std=None), \
+                                get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+                                                     out_h=out_h, out_w=out_w, mean=None, std=None)
+    train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():
     #    net.cuda()
@@ -229,5 +228,5 @@ if __name__ == '__main__':
 
     # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
     #
-    test(net)
-    do_submisssion()
+    # test(net)
+    # do_submisssion()
