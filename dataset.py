@@ -30,6 +30,8 @@ std = [
 ]
 
 
+
+
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None, hq=True,
                  test=False, preload=False, mean=None, std=None, start=None, end=None):
@@ -140,10 +142,9 @@ class VerticalFlip(object):
 
 
 class HorizontalFlip(object):
-    def __call__(self, data):
-        u = random.random()
+    def __call__(self, data, u=0.5):
         img, l = data
-        if u < 0.5:
+        if random.random() < u:
             img = cv2.flip(img, 1)
             l = cv2.flip(l, 1)
         return img, l
@@ -151,8 +152,8 @@ class HorizontalFlip(object):
 
 class RandomRotate(object):
     def __call__(self, data, shift_limit=(-0.0625, 0.0625), scale_limit=(1 / 1.1, 1.1),
-                                       rotate_limit=(-45, 45), aspect_limit=(1, 1), borderMode=cv2.BORDER_REFLECT_101,
-                                       u=0.5):
+                                       rotate_limit=(-30, 30), aspect_limit=(1, 1), borderMode=cv2.BORDER_REFLECT_101,
+                                       u=0.3):
 
         # cv2.BORDER_REFLECT_101  cv2.BORDER_CONSTANT
         img, l = data
@@ -181,7 +182,7 @@ class RandomRotate(object):
 
             img = cv2.warpPerspective(img, mat, (width, height), flags=cv2.INTER_LINEAR,  borderMode=borderMode,
                                       borderValue=(0, 0, 0,))
-            l = cv2.warpPerspective(img, mat, (width, height), flags=cv2.INTER_LINEAR, borderMode=borderMode,
+            l = cv2.warpPerspective(l, mat, (width, height), flags=cv2.INTER_LINEAR, borderMode=borderMode,
                                     borderValue=(0, 0, 0,))
 
         return img, l
@@ -193,9 +194,9 @@ class RandomHueSaturationValue(object):
         self.sat_shift_limit = sat_shift_limit
         self.val_shift_limit = val_shift_limit
 
-    def __call__(self, data):
+    def __call__(self, data, u=0.3):
         image, l = data
-        if random.random() < 0.5:
+        if random.random() < u:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             h, s, v = cv2.split(image)
             hue_shift = np.random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1])
@@ -210,17 +211,17 @@ class RandomHueSaturationValue(object):
 
 
 class RandomTransposeColor(object):
-    def __call__(self, data):
+    def __call__(self, data, u=0.5):
         img, l = data
-        if random.random() < 0.5:
+        if random.random() < u:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         return img, l
 
 
 class RandomGray(object):
-    def __call__(self, data):
+    def __call__(self, data, u=0.3):
         img, l = data
-        if random.random() < 0.5:
+        if random.random() < u:
             coeff = np.array([.7154, .0721, .2125])
             gray_img = np.sum(img * coeff, 2)
             img[:, :, 0] = gray_img
@@ -229,34 +230,43 @@ class RandomGray(object):
         return img, l
 
 
-# class RandomBrightness(object):
-#     def __init__(self, limit=(-76.5, 76.5), u=0.5):
-#         self.limit = limit
-#         self.u = u
-#
-#     def __call__(self, data):
-#         img, l = data
-#         if random.random() < 0.5:
-#             alpha = 255.0 + random.uniform(self.limit[0], self.limit[1])
-#             img = alpha*img
-#             img = np.clip(img, 0., 255.)
-#         return img, l
-
-
 class RandomCrop(object):
     def __init__(self, size=(1240, 1880)):
         self.size = size
 
-    def __call__(self, data):
+    def __call__(self, data, u=0.5):
         img, l = data
-        u = random.random()
-        if u < 0.5:
+        if random.random() < u:
             h, w, c = img.shape
             ht, wt = self.size
             x, y = np.random.randint(0, w-wt), np.random.randint(0, h-ht)
             img = img[x:ht+x, y:wt+y]
             l = l[x:ht+x, y:+wt+y]
         return img, l
+
+##################### transform types ###############
+transform1 = Compose([
+    RandomCrop(),
+    HorizontalFlip()
+])
+
+transform2 = HorizontalFlip()
+
+
+transform3 = Compose(
+    [
+        HorizontalFlip(),
+        RandomTransposeColor(),
+    ]
+)
+
+transform4 = Compose([
+    HorizontalFlip(),
+    RandomTransposeColor(),
+    RandomHueSaturationValue(),
+    RandomRotate(),
+    RandomGray(),
+])
 
 
 def get_valid_dataloader(batch_size, split, H=512, W=512, out_h=1280, out_w=1918, preload=True, num_works=0, mean=mean, std=std):

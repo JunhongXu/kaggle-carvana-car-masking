@@ -4,7 +4,8 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 from torch.optim import Adam, SGD
 import glob
-from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, HorizontalFlip, \
+from dataset import transform1, transform2, transform3, transform4,\
+    get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, HorizontalFlip, \
     mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
@@ -58,6 +59,7 @@ def train(net):
     if torch.cuda.is_available():
         net.cuda()
     logger = Logger(model_name)
+    train_loader.dataset.transforms = transform4
     if START_EPOCH > 0:
         net.load_state_dict(torch.load('models/'+model_name+'.pth'))
         print('------------Resume training %s from %s---------------' %(model_name, START_EPOCH))
@@ -71,7 +73,7 @@ def train(net):
 
         if e >20:
             # reduce augmentation
-            train_loader.dataset.transforms = HorizontalFlip()
+            train_loader.dataset.transforms = transform3()
 
         num = 0
         total = len(train_loader.dataset.img_names)
