@@ -75,6 +75,7 @@ class CarvanaDataSet(Dataset):
                         self.labels[i] = l
         else:
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if not hq else CARANA_DIR+'/test_hq/*.jpg')
+            print(len(self.img_names))
             if start is not None and end is not None:
                 self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if not hq else CARANA_DIR+'/test_hq/*.jpg')[start:end]
         print('Number of samples {}'.format(len(self.img_names)))

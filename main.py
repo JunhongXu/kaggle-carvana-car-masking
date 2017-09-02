@@ -165,15 +165,17 @@ def test(net):
         # total_preds = total_preds + predictions
         # total_preds = total_preds / len(test_aug_dim)
         if DEBUG:
-            mask = cv2.resize((pred_labels[0]).astype(np.uint8),  (1918, 1280))
-            mask = np.ma.masked_where(mask==0, mask)
-            plt.imshow(cv2.resize(cv2.imread(test_loader.dataset.img_names[0]), (1918, 1280)))
-            plt.imshow(mask, 'jet', alpha=0.6)
-            # cv2.imshow('orig', cv2.resize(cv2.imread(test_loader.dataset.img_names[0]), (1918, 1280)))
-            # cv2.imshow('test', cv2.resize((total_preds[0]).astype(np.uint8),  (1918, 1280))*100)
-            # cv2.waitKey()
-            plt.show()
-        names = glob.glob(CARANA_DIR+'/test/*.jpg')[s:e]
+            for l, img in zip(pred_labels, test_loader.dataset.img_names):
+                mask = cv2.resize((l).astype(np.uint8),  (1918, 1280))
+                mask = np.ma.masked_where(mask==0, mask)
+                plt.imshow(cv2.resize(cv2.imread(img), (1918, 1280)))
+                plt.imshow(mask, 'jet', alpha=0.6)
+                # cv2.imshow('orig', cv2.resize(cv2.imread(test_loader.dataset.img_names[0]), (1918, 1280)))
+                # cv2.imshow('test', cv2.resize((total_preds[0]).astype(np.uint8),  (1918, 1280))*100)
+                # cv2.waitKey()
+                print(img)
+                plt.show()
+        names = test_loader.dataset.img_names
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
         save_mask(mask_imgs=pred_labels, model_name=model_name, names=names)
@@ -202,8 +204,19 @@ def do_submisssion():
 if __name__ == '__main__':
     net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
     net.load_params('resnet50')
-    net = nn.DataParallel(net)
-    # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
+    net = nn.DataParallel(net).cuda()
+    if 0:
+        net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
+        img = cv2.resize(cv2.imread('/media/jxu7/BACK-UP/Data/carvana/test_hq/000aa097d423_04.jpg'), (1024, 1024))
+       # print(img)
+        img_ = Variable(torch.from_numpy(img.reshape(1, 1024, 1024, 3).transpose(0, 3, 1, 2)/255.), volatile=True).cuda()
+        img_ = img_.float()
+        l, mask = net(img_)
+        mask = (mask.data.cpu().numpy() > 0.5).astype(np.uint8)
+        print(mask.sum())
+        cv2.imshow('frame', mask.reshape(1024, 1024)*100)
+        cv2.imshow('orig', img.reshape(1024, 1024, 3))
+        cv2.waitKey()
     # # from scipy.misc import imshow
     # valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=4, H=in_h, W=in_w, out_h=out_h,
      #                                                  preload=False, num_works=2,

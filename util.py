@@ -163,13 +163,21 @@ class Logger(object):
 if __name__ == '__main__':
     from scipy.misc import imread
     import cv2
+    from matplotlib import pyplot as plt
+
     # split(4788)
-    imgs = glob.glob(CARANA_DIR+'/train/train_masks/*.gif')
+    imgs = sorted(glob.glob(CARANA_DIR+'/refinenetv4_1024_hq/*.png'))
    #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
-    orig = glob.glob(CARANA_DIR+'/test/*.jpg')
-    for img, img_, orig_ in zip(imgs, orig):
-          img = (cv2.resize(imread(img), (960, 640)))
-          img_ = (cv2.resize(imread(img_), (960, 640)))
+    orig = sorted(glob.glob(CARANA_DIR+'/test_hq/*.jpg'))
+    for img, img_ in zip(imgs, orig):
+        print(img, '\n', img_)
+        mask = (cv2.resize(imread(img), (960, 640)))
+        img_ = (cv2.resize(imread(img_), (960, 640)))
+        mask = cv2.resize((mask).astype(np.uint8),  (960, 640))
+        mask = np.ma.masked_where(mask==0, mask)
+        plt.imshow(img_)
+        plt.imshow(mask, 'jet', alpha=0.6)
+        plt.show()
    #      orig_ = (cv2.resize(imread(orig_), (960, 640)))
    #      cv2.imshow('f', img*100)
    #      cv2.imshow('2', img_*100)
