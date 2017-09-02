@@ -167,7 +167,7 @@ if __name__ == '__main__':
     imgs = glob.glob(CARANA_DIR+'/train/train_masks/*.gif')
    #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
     orig = glob.glob(CARANA_DIR+'/test/*.jpg')
-    for img, img_, orig_ in zip(imgs, img_2, orig):
+    for img, img_, orig_ in zip(imgs, orig):
           img = (cv2.resize(imread(img), (960, 640)))
           img_ = (cv2.resize(imread(img_), (960, 640)))
    #      orig_ = (cv2.resize(imread(orig_), (960, 640)))
