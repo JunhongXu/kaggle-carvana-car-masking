@@ -144,6 +144,7 @@ class Logger(object):
         self.train_loss = []
         self.val_loss = []
         self.time = []
+        self.file = open(os.path.join('logger', self.name+'.txt'), 'w')
 
     def log(self, train_acc, val_acc, train_loss, val_loss, time):
         self.train_acc.append(train_acc)
@@ -151,6 +152,12 @@ class Logger(object):
         self.train_loss.append(train_loss)
         self.val_loss.append(val_loss)
         self.time.append(time)
+
+    def write(self, msg, do_print=True):
+        if do_print:
+            print(msg)
+        self.file.write(msg)
+        self.file.flush()
 
     def save(self):
         with open(os.path.join('logger', self.name+'.txt'), 'w') as f:
