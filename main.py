@@ -9,7 +9,7 @@ from dataset import transform1, transform2, transform3, transform4,\
     mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
-from refinenet import RefineNet1024, BasicBlock, Bottleneck
+from refinenet import RefineNetV1_1024, RefineNetV2_1024, Bottleneck
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 import cv2
 from scipy.misc import imread
@@ -199,7 +199,7 @@ def do_submisssion():
 
 
 if __name__ == '__main__':
-    net = RefineNet1024(Bottleneck, [3, 4, 6, 3])
+    net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
     net.load_params('resnet50')
     net = nn.DataParallel(net)
     # net.load_state_dict(torch.load('models/unet1024_5000.pth'))
