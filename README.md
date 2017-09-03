@@ -9,13 +9,9 @@ Kaggle Competition, hope I can win this one!
 
 RefineNet-v1: Pre-trained ResNet-50 with features added to decoder
 RefineNet-v2: Pre-trained ResNet-50 with features stacked to decoder
+RefineNet-v3: Train with image dimension of (640*960)  Not so good: 0.9961
 
------------
-
-In progress: 
-
-1. Train with image dimension of (800*1200)
-2. Add more augmentation
+Add more augmentation: Just use horizontal flip and rotation.
 
 ------------
 

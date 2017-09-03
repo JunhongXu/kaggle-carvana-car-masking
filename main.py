@@ -33,9 +33,9 @@ print_it = 30
 interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv4_1200*800_transform_hq'
-BATCH = 6
-EVAL_BATCH = 32
+model_name = 'refinenetv4_1440*960_hq'
+BATCH = 4
+EVAL_BATCH = 10
 DEBUG = False
 
 test_aug_dim = [(1152, 1152)]
@@ -64,7 +64,7 @@ def train(net):
     logger = Logger(str(model_name))
     logger.write('-----------------------Network config-------------------\n')
     logger.write(str(net)+'\n')
-    train_loader.dataset.transforms = transform4
+    train_loader.dataset.transforms = transform3
     if START_EPOCH > 0:
         net.load_state_dict(torch.load('models/'+model_name+'.pth'))
         logger.write(('------------Resume training %s from %s---------------\n' %(model_name, START_EPOCH)))
@@ -76,9 +76,9 @@ def train(net):
         lr_scheduler(optimizer, e)
         moving_bce_loss = 0.0
 
-        if e >15:
+        if e >25:
             # reduce augmentation
-            train_loader.dataset.transforms = transform3
+            train_loader.dataset.transforms = transform2
 
         num = 0
         total = len(train_loader.dataset.img_names)
@@ -195,7 +195,6 @@ def do_submisssion():
     mask_names = glob.glob(CARANA_DIR+'/'+model_name+'/*.png')
     names = []
     rle = []
-    # df = pd.DataFrame({'img'})
     for index, test_name in enumerate(mask_names):
         name = test_name.split('/')[-1][:-4]
         if index % 1000 ==0:
@@ -215,7 +214,6 @@ if __name__ == '__main__':
     if 0:
         net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
         img = cv2.resize(cv2.imread('/media/jxu7/BACK-UP/Data/carvana/test_hq/000aa097d423_04.jpg'), (1024, 1024))
-       # print(img)
         img_ = Variable(torch.from_numpy(img.reshape(1, 1024, 1024, 3).transpose(0, 3, 1, 2)/255.), volatile=True).cuda()
         img_ = img_.float()
         l, mask = net(img_)
@@ -224,31 +222,12 @@ if __name__ == '__main__':
         cv2.imshow('frame', mask.reshape(1024, 1024)*100)
         cv2.imshow('orig', img.reshape(1024, 1024, 3))
         cv2.waitKey()
-    # valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=4, H=in_h, W=in_w, out_h=out_h,
-    #                                                   preload=False, num_works=2,
-    #                                                   out_w=out_w, mean=None, std=None), \
-    #                             get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
-    # train(net)
-    # valid_loader = get_valid_dataloader(64)
-    # if torch.cuda.is_available():
-    #    net.cuda()
-    # net = nn.DataParallel(net)
-    # net.load_state_dict(torch.load('models/unet-v1-640*960.pth'))
+    valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=out_h,
+                                                          preload=False, num_works=2,
+                                                          out_w=out_w, mean=None, std=None), \
+                                     get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+                                                          out_h=out_h, out_w=out_w, mean=None, std=None)
+    train(net)
 
-
-    # print(evaluate(valid_loader, net, nn.NLLLoss2d()))
-    # pred_labels = pred(valid_loader, net)
-
-    # for l in pred_labels:
-        # print(l.sum())
-        # print(l)
-        # imshow( l)
-    # names = glob.glob(CARANA_DIR+'/test/*.jpg')
-    # names = [name.split('/')[-1][:-4] for name in names]
-    # save mask
-
-    # save_mask(mask_imgs=pred_labels, model_name='unet', names=names)
-    #
     test(net)
     do_submisssion()
