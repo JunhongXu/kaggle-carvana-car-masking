@@ -20,19 +20,22 @@ from util import Logger
 from math import ceil
 from matplotlib import pyplot as plt
 
+
+torch.manual_seed(0)
+torch.cuda.manual_seed(0)
 EPOCH = 60
 START_EPOCH = 0
-in_h = 800
-in_w = 1200
-out_w = 1200
-out_h = 800
+in_h = 640
+in_w = 960
+out_w = 960
+out_h = 640
 print_it = 30
 interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
 model_name = 'refinenetv4_1200*800_transform_hq'
-BATCH = 4
-EVAL_BATCH = 16
+BATCH = 6
+EVAL_BATCH = 32
 DEBUG = False
 
 test_aug_dim = [(1152, 1152)]
@@ -40,9 +43,9 @@ test_aug_dim = [(1152, 1152)]
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
-        lr = 0.005
+        lr = 0.008
     elif 10 < epoch<= 30:
-        lr = 0.001
+        lr = 0.005
     elif 30 < epoch <= 50:
         lr = 0.001
     else:
@@ -58,9 +61,9 @@ def train(net):
     softiou = SoftIoULoss()
     if torch.cuda.is_available():
         net.cuda()
-    logger = Logger(model_name)
+    logger = Logger(str(model_name))
     logger.write('-----------------------Network config-------------------\n')
-    logger.write(net)
+    logger.write(str(net)+'\n')
     train_loader.dataset.transforms = transform4
     if START_EPOCH > 0:
         net.load_state_dict(torch.load('models/'+model_name+'.pth'))
@@ -127,13 +130,14 @@ def train(net):
                   % (e, bce_loss.data[0], smooth_loss, train_acc, valid_loss, dice, (tac-tic)/60),
                   flush=True, end='')
             print('\n')
-            logger.write('%.3f || %.5f || %.5f || %.4f || ... || ... || % .2f\n'
-                         % (num / total, bce_loss.data[0], smooth_loss, train_acc, (tac - tic) / 60), False)
+            logger.write('%s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f\n'
+                         % (e, bce_loss.data[0], smooth_loss, train_acc, valid_loss, dice, (tac-tic)/60), False)
             logger.log(train_acc, dice, time=(tac-tic)/60, train_loss=bce_loss.data[0], val_loss=valid_loss)
             if best_val_loss < dice:
                 torch.save(net.state_dict(), 'models/'+model_name+'.pth')
                 best_val_loss = dice
     logger.save()
+    logger.file.close()
 
 
 def test(net):
@@ -221,10 +225,10 @@ if __name__ == '__main__':
         cv2.imshow('orig', img.reshape(1024, 1024, 3))
         cv2.waitKey()
     # valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=4, H=in_h, W=in_w, out_h=out_h,
-     #                                                  preload=False, num_works=2,
-     #                                                  out_w=out_w, mean=None, std=None), \
-     #                            get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-     #                                                 out_h=out_h, out_w=out_w, mean=None, std=None)
+    #                                                   preload=False, num_works=2,
+    #                                                   out_w=out_w, mean=None, std=None), \
+    #                             get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+    #                                                  out_h=out_h, out_w=out_w, mean=None, std=None)
     # train(net)
     # valid_loader = get_valid_dataloader(64)
     # if torch.cuda.is_available():

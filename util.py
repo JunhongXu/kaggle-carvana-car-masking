@@ -173,17 +173,31 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
 
     # split(4788)
-    imgs = sorted(glob.glob(CARANA_DIR+'/refinenetv4_1024_hq/*.png'))
+    imgs = sorted(glob.glob(CARANA_DIR+'/refinenetv4_1200*800_transform_hq/*.png'))
+    imgs_2 = sorted(glob.glob(CARANA_DIR+'/refinenetv4_1024_hq/*.png'))
    #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
     orig = sorted(glob.glob(CARANA_DIR+'/test_hq/*.jpg'))
-    for img, img_ in zip(imgs, orig):
-        print(img, '\n', img_)
-        mask = (cv2.resize(imread(img), (960, 640)))
-        img_ = (cv2.resize(imread(img_), (960, 640)))
-        mask = cv2.resize((mask).astype(np.uint8),  (960, 640))
+
+    for img, img_2, img_ in zip(imgs, imgs_2, orig):
+        plt.figure(figsize=(30,20))
+        plt.subplot(1, 2, 1)
+        plt.title('960*640')
+        mask = (cv2.resize(imread(img), (1918, 1280)))
+        img_ = (cv2.resize(imread(img_), (1918, 1280)))
+        mask = cv2.resize((mask).astype(np.uint8),  (1918, 1280))
+        mask = np.ma.masked_where(mask==0, mask)
+        plt.gca().axis('off')
+        plt.imshow(img_)
+        plt.imshow(mask, 'jet', alpha=0.6)
+
+        plt.subplot(1, 2, 2)
+        plt.title('1024*1824')
+        mask = (cv2.resize(imread(img_2), (1918, 1280)))
+        mask = cv2.resize((mask).astype(np.uint8),  (1918, 1280))
         mask = np.ma.masked_where(mask==0, mask)
         plt.imshow(img_)
         plt.imshow(mask, 'jet', alpha=0.6)
+        plt.gca().axis('off')
         plt.show()
    #      orig_ = (cv2.resize(imread(orig_), (960, 640)))
    #      cv2.imshow('f', img*100)

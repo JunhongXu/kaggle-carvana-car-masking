@@ -148,22 +148,27 @@ class HorizontalFlip(object):
 
 
 class RandomRotate(object):
-    def __call__(self, data, shift_limit=(-0.0625, 0.0625), scale_limit=(1 / 1.1, 1.1),
-                                       rotate_limit=(-10, 10), aspect_limit=(1, 1), borderMode=cv2.BORDER_REFLECT_101,
-                                       u=0.5):
+    def __init__(self, shift_limit=(-0.062, 0.062), scale_limit=(0.91,1.21), rotate_limit=(-10, 10),
+                 aspect_limit=(1, 1), ):
+        self.shift_limit = shift_limit
+        self.scale_limit = scale_limit
+        self.rotate_limit = rotate_limit
+        self.aspect_limit = aspect_limit
+
+    def __call__(self, data, borderMode=cv2.BORDER_REFLECT_101, u=0.5):
 
         # cv2.BORDER_REFLECT_101  cv2.BORDER_CONSTANT
         img, l = data
         if random.random() < u:
             height, width, channel = img.shape
 
-            angle = random.uniform(rotate_limit[0], rotate_limit[1])  # degree
-            scale = random.uniform(scale_limit[0], scale_limit[1])
-            aspect = random.uniform(aspect_limit[0], aspect_limit[1])
+            angle = random.uniform(self.rotate_limit[0], self.rotate_limit[1])  # degree
+            scale = random.uniform(self.scale_limit[0], self.scale_limit[1])
+            aspect = random.uniform(self.aspect_limit[0], self.aspect_limit[1])
             sx = scale * aspect / (aspect ** 0.5)
             sy = scale / (aspect ** 0.5)
-            dx = round(random.uniform(shift_limit[0], shift_limit[1]) * width)
-            dy = round(random.uniform(shift_limit[0], shift_limit[1]) * height)
+            dx = round(random.uniform(self.shift_limit[0], self.shift_limit[1]) * width)
+            dy = round(random.uniform(self.shift_limit[0], self.shift_limit[1]) * height)
 
             cc = math.cos(angle / 180 * math.pi) * (sx)
             ss = math.sin(angle / 180 * math.pi) * (sy)
@@ -254,6 +259,7 @@ transform3 = Compose(
     [
         HorizontalFlip(),
         RandomTransposeColor(),
+        RandomRotate(rotate_limit=(0, 0))
     ]
 )
 
