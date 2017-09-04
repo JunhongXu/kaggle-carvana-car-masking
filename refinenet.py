@@ -33,7 +33,7 @@ class RCU(nn.Module):
 
 
 class RefineNetV3_1024(nn.Module):
-    def __init__(self, growth_rate=64, block_config=(3, 6, 10, 4),
+    def __init__(self, growth_rate=64, block_config=(1,2, 2, 2),
                  num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000):
         super(RefineNetV3_1024, self).__init__()
         self.num_features = num_init_features
@@ -50,20 +50,20 @@ class RefineNetV3_1024(nn.Module):
         self.norm5 = nn.BatchNorm2d(self.num_features)
 
         # middle transition
-        self.trans4 = nn.Sequential(*make_conv_bn_relu(320, 512, kernel_size=1, padding=0))  # 512*32*32
+        self.trans4 = nn.Sequential(*make_conv_bn_relu(88, 256, kernel_size=1, padding=0))  # 512*32*32
 
         # upblock
-        self.up_3 = RCU(1024, 512)  # 512*64*64
-        self.trans3 = nn.Sequential(RCU(448, 512))
+        self.up_3 = RCU(512, 256)  # 512*64*64
+        self.trans3 = nn.Sequential(RCU(112, 256))
 
-        self.up_2 = RCU(768, 256)   # 256*128*128
-        self.trans2 = nn.Sequential(RCU(256, 256))
+        self.up_2 = RCU(320, 64)   # 256*128*128
+        self.trans2 = nn.Sequential(RCU(96, 64))
 
-        self.up_1 = RCU(384, 128)   # 128*256*256
-        self.trans1 = nn.Sequential(RCU(128, 128))
+        self.up_1 = RCU(320, 64)   # 128*256*256
+        self.trans1 = nn.Sequential(RCU(64, 256))
 
-        self.up_0 = RCU(192, 64)    # 64*512*512
-        self.trans0 = nn.Sequential(RCU(64, 64))
+        self.up_0 = RCU(128, 16)    # 64*512*512
+        self.trans0 = nn.Sequential(RCU(64, 16))
 
         self.classify = nn.Sequential(
             RCU(64, 32),
