@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torchvision.models.resnet import Bottleneck
 from torchvision.models.resnet import model_urls, model_zoo
+from torchvision.models.densenet import _DenseBlock, _Transition
 
 
 def make_conv_bn_relu(input_feat, output_feat, kernel_size=3, padding=1):
@@ -13,73 +14,17 @@ def make_conv_bn_relu(input_feat, output_feat, kernel_size=3, padding=1):
     return layer
 
 
-# class RefineNetBlock(nn.Module):
-#     def __init__(self, input_feats, output_feats, feat_size):
-#         super(RefineNetBlock, self).__init__()
-#         if len(input_feats) == 2:
-#             self.rcu1_1 = RCU(input_feats[0], output_feats[0])
-#             self.rcu1_2 = RCU(output_feats[0], output_feats[0])
-#
-#             self.rcu2_1 = RCU(input_feats[1], output_feats[1])
-#             self.rcu2_2 = RCU(output_feats[1], output_feats[1])
-#         else:
-#             self.rcu1_1 = RCU(input_feats[0], output_feats[0])
-#             self.rcu1_2 = RCU(output_feats[0], output_feats[0])
-#
-#         if len(input_feats) > 1:
-#             self.fusion_block = FusionBlock(output_feats[0], output_feats[1], feat_size)
-#
-#         self.pooling = ChainedResPool(output_feats[0])
-#
-#     def forward(self, *x):
-#         if len(x) == 1:
-#             x = self.rcu1_1(x[0])
-#             x = self.rcu1_2(x)
-#         else:
-#             x1, x2 = x
-#             rcu1, rcu2 = self.rcu1_2(self.rcu1_1(x1)), self.rcu2_2(self.rcu2_1(x2))
-#             x = self.fusion_block(rcu1, rcu2)
-#
-#         return self.pooling(x)
-
-
 class RCU(nn.Module):
     def __init__(self, input_feats, out_feats):
         super(RCU, self).__init__()
-        #
-        # self.bn1 = nn.BatchNorm2d(input_feats)
-        # self.relu1 = nn.ReLU()
-        # self.conv1 = nn.Conv2d(input_feats, out_feats, kernel_size=3, stride=1, padding=1, bias=not batch_norm)
         self.layer1 = nn.Sequential(*make_conv_bn_relu(input_feats, out_feats))
         self.layer2 = nn.Sequential(*make_conv_bn_relu(out_feats, out_feats))
         self.transition = nn.Sequential(
             nn.Conv2d(input_feats, out_feats, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(out_feats)
         )
-        # if batch_norm:
-        #     self.bn2 = nn.BatchNorm2d(input_feats)
-        # self.relu2 = nn.ReLU()
-        # self.conv2 = nn.Conv2d(out_feats, out_feats, kernel_size=3, stride=1, padding=1, bias=not batch_norm)
-        #
-        # # add an additional conv layer to map input to the disred features
-        # self.conv3 = nn.Conv2d(input_feats, out_feats, 3, stride=1, padding=1, bias=False)
-        # self.bn3 = nn.BatchNorm2d(out_feats)
 
     def forward(self, x):
-        # if self.batch_norm:
-        #     out = self.bn1(x)
-        # else:
-        #     out = x
-        # out = self.relu1(out)
-        # out = self.conv1(out)
-        #
-        # if self.batch_norm:
-        #     out = self.bn2(out)
-        # out = self.relu2(out)
-        # out = self.conv2(out)
-        #
-        # x = self.conv3(x)
-        # x = self.bn3(x)
         out = self.layer1(x)
         out = self.layer2(out)
         x = self.transition(x)
@@ -87,45 +32,93 @@ class RCU(nn.Module):
         return F.relu(out)
 
 
-# class FusionBlock(nn.Module):
-#     def __init__(self, input_feat1, input_feat2, size):
-#         """Fuse two input features, input_feat1 is the smaller feature"""
-#         super(FusionBlock, self).__init__()
-#         self.path1 = nn.Conv2d(input_feat1, input_feat1, kernel_size=3, stride=1, padding=1)
-#         self.path2 = nn.Conv2d(input_feat2, input_feat1, kernel_size=3, stride=1, padding=1)
-#         self.upsample = nn.Upsample(size=size, mode='bilinear')
-#
-#     def forward(self, path1, path2):
-#         x1 = self.path1(path1)
-#         x2 = self.path2(path2)
-#
-#         return self.upsample(x1) + self.upsample(x2)
+class RefineNetV3_1024(nn.Module):
+    def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
+                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000):
+        super(RefineNetV3_1024, self).__init__()
+        self.num_features = num_init_features
+        self.block_config = block_config
+        self.conv1 = nn.Sequential(
+            *make_conv_bn_relu(3, num_init_features),
+            nn.MaxPool2d(2, 2)
+        )                                               # 64*512*512
 
+        self.layer1 = self._make_layer(block_config[0], bn_size, growth_rate, drop_rate, 0) # 128*256*256
+        self.layer2 = self._make_layer(block_config[1], bn_size, growth_rate, drop_rate, 1) # 256*128*128
+        self.layer3 = self._make_layer(block_config[2], bn_size, growth_rate, drop_rate, 2) # 512*64*64
+        self.layer4 = self._make_layer(block_config[0], bn_size, growth_rate, drop_rate, 3) # 352*32*32
+        self.norm5 = nn.BatchNorm2d(self.num_features)
 
-# class ChainedResPool(nn.Module):
-#     def __init__(self, num_feat):
-#         """how to do chained pooling exactly? every pool gives spatial size reduction,
-#         can not sum together different feature maps. make padding = 2"""
-#         super(ChainedResPool, self).__init__()
-#         self.relu = nn.ReLU(inplace=True)
-#         self.pool1 = nn.MaxPool2d(kernel_size=5, stride=1, padding=2)
-#         self.conv1 = nn.Conv2d(num_feat, num_feat, 3, stride=1, padding=1)
-#
-#         self.pool2 = nn.MaxPool2d(kernel_size=5, stride=1, padding=2)
-#         self.conv2 = nn.Conv2d(num_feat, num_feat, 3, stride=1, padding=1)
-#
-#     def forward(self, x):
-#         x = self.relu(x)
-#         out1 = self.pool1(x)
-#         out1 = self.conv1(out1)
-#
-#         out = x + out1
-#
-#         out2 = self.pool2(out1)
-#         out2 = self.conv2(out2)
-#
-#         out = out + out2
-#         return out
+        # middle transition
+        self.trans4 = nn.Sequential(*make_conv_bn_relu(352, 512, kernel_size=1, padding=0))  # 512*32*32
+
+        # upblock
+        self.up_3 = RCU(1024, 512)  # 512*64*64
+        self.trans3 = nn.Sequential(RCU(512, 512))
+
+        self.up_2 = RCU(768, 256)   # 256*128*128
+        self.trans2 = nn.Sequential(RCU(256, 256))
+
+        self.up_1 = RCU(384, 128)   # 128*256*256
+        self.trans1 = nn.Sequential(RCU(128, 128))
+
+        self.up_0 = RCU(192, 64)    # 64*512*512
+        self.trans0 = nn.Sequential(RCU(64, 64))
+
+        self.classify = nn.Sequential(
+            RCU(64, 32),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Conv2d(32, 1, bias=True, padding=1, stride=1, kernel_size=3)
+        )
+
+    def _make_layer(self, num_layers, bn_size, growth_rate, drop_rate, block_idx):
+        denseblock = _DenseBlock(num_layers, self.num_features, bn_size, growth_rate, drop_rate)
+        self.num_features = self.num_features + num_layers * growth_rate
+        if block_idx != len(self.block_config):
+            trans = _Transition(self.num_features, self.num_features//2)
+            self.num_features = self.num_features//2
+        return nn.Sequential(denseblock, trans)
+
+    def forward(self, x):
+        down1 = self.conv1(x)
+        # print(down1.size()) # 64
+        down2 = self.layer1(down1)
+        # print(down2.size()) # 128
+        down3 = self.layer2(down2)
+        # print(down3.size()) # 256
+        down4 = self.layer3(down3)
+        # print(down4.size()) # 512
+        down5 = self.layer4(down4)
+        # print(down5.size()) # 384
+        down5 = self.norm5(down5)
+
+        middle = self.trans4(down5)
+        # print(middle.size())
+        out = F.upsample(middle, scale_factor=2, mode='bilinear')
+        down4 = self.trans3(down4)
+        out = torch.cat((out, down4), 1)
+        out = self.up_3(out)
+        # print(out.size())
+
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        down3 = self.trans2(down3)
+        out = torch.cat((out, down3), 1)
+        out = self.up_2(out)
+        # print(out.size())
+
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        down2 = self.trans1(down2)
+        out = torch.cat((out, down2), 1)
+        out = self.up_1(out)
+        # print(out.size())
+
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        down1 = self.trans0(down1)
+        out = torch.cat((out, down1), 1)
+        out = self.up_0(out)
+        # print(out.size())
+        out = self.classify(out)
+        return out
 
 
 class RefineNetV2_1024(nn.Module):
@@ -326,20 +319,12 @@ class RefineNetV1_1024(nn.Module):
 
         return out, F.sigmoid(out)
 
-
-def test_refine_block(in_feat, out_feat, size):
-    block = RefineNetBlock(in_feat, out_feat, size)
-    print(block)
-    x = Variable(torch.randn(1, 20, 16, 16))
-    x1 = Variable(torch.randn(1, 32, 20, 20))
-    print(block(x, x1))
-
 if __name__ == '__main__':
     from torch.autograd import Variable
     a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
-    resnet = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3]).cuda()
+    resnet = RefineNetV3_1024(block_config=[6, 12, 24, 16]).cuda()
     # resnet.load_params()
-    resnet = nn.DataParallel(resnet)
+#    resnet = nn.DataParallel(resnet)
     # resnet.cuda()
     # print(resnet(a))
     print(resnet(a))

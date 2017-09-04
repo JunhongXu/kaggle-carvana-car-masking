@@ -1034,28 +1034,28 @@ class UNet_1024_5 (nn.Module):
         #512
         down1 = self.down1(x)
         out   = F.max_pool2d(down1, kernel_size=2, stride=2) #64
-
+        # 256
         down2 = self.down2(out)
         out   = F.max_pool2d(down2, kernel_size=2, stride=2) #64
-
+        #128
         down3 = self.down3(out)
         out   = F.max_pool2d(down3, kernel_size=2, stride=2) #64
-
+        #64
         down4 = self.down4(out)
         out   = F.max_pool2d(down4, kernel_size=2, stride=2) #32
-
+        #32
         down5 = self.down5(out)
         out   = F.max_pool2d(down5, kernel_size=2, stride=2) #16
-
+        #16
         down6 = self.down6(out)
         out   = F.max_pool2d(down6, kernel_size=2, stride=2) # 8
 
         out   = self.center(out)
-
+        #32
         out   = F.upsample_bilinear(out, scale_factor=2) #16
         out   = torch.cat([down6, out],1)
         out   = self.up6(out)
-
+        #64
         out   = F.upsample_bilinear(out, scale_factor=2) #32
         out   = torch.cat([down5, out],1)
         out   = self.up5(out)
