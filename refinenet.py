@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from torchvision.models.resnet import Bottleneck
+from torchvision.models.resnet import Bottleneck, BasicBlock
 from torchvision.models.resnet import model_urls, model_zoo
 from torchvision.models.densenet import _DenseBlock, _Transition
 
@@ -32,93 +32,93 @@ class RCU(nn.Module):
         return F.relu(out)
 
 
-class RefineNetV3_1024(nn.Module):
-    def __init__(self, growth_rate=64, block_config=(1,2, 2, 2),
-                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000):
-        super(RefineNetV3_1024, self).__init__()
-        self.num_features = num_init_features
-        self.block_config = block_config
-        self.conv1 = nn.Sequential(
-            *make_conv_bn_relu(3, num_init_features),
-            nn.MaxPool2d(2, 2)
-        )                                               # 64*512*512
-
-        self.layer1 = self._make_layer(block_config[0], bn_size, growth_rate, drop_rate, 0) # 128*256*256
-        self.layer2 = self._make_layer(block_config[1], bn_size, growth_rate, drop_rate, 1) # 256*128*128
-        self.layer3 = self._make_layer(block_config[2], bn_size, growth_rate, drop_rate, 2) # 512*64*64
-        self.layer4 = self._make_layer(block_config[0], bn_size, growth_rate, drop_rate, 3) # 352*32*32
-        self.norm5 = nn.BatchNorm2d(self.num_features)
-
-        # middle transition
-        self.trans4 = nn.Sequential(*make_conv_bn_relu(88, 256, kernel_size=1, padding=0))  # 512*32*32
-
-        # upblock
-        self.up_3 = RCU(512, 256)  # 512*64*64
-        self.trans3 = nn.Sequential(RCU(112, 256))
-
-        self.up_2 = RCU(320, 64)   # 256*128*128
-        self.trans2 = nn.Sequential(RCU(96, 64))
-
-        self.up_1 = RCU(320, 64)   # 128*256*256
-        self.trans1 = nn.Sequential(RCU(64, 256))
-
-        self.up_0 = RCU(128, 16)    # 64*512*512
-        self.trans0 = nn.Sequential(RCU(64, 16))
-
-        self.classify = nn.Sequential(
-            RCU(64, 32),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(32, 1, bias=True, padding=1, stride=1, kernel_size=3)
-        )
-
-    def _make_layer(self, num_layers, bn_size, growth_rate, drop_rate, block_idx):
-        denseblock = _DenseBlock(num_layers, self.num_features, bn_size, growth_rate, drop_rate)
-        self.num_features = self.num_features + num_layers * growth_rate
-        if block_idx != len(self.block_config):
-            trans = _Transition(self.num_features, self.num_features//2)
-            self.num_features = self.num_features//2
-        return nn.Sequential(denseblock, trans)
-
-    def forward(self, x):
-        down1 = self.conv1(x)
-        print(down1.size()) # 64
-        down2 = self.layer1(down1)
-        print(down2.size()) # 128
-        down3 = self.layer2(down2)
-        print(down3.size()) # 256
-        down4 = self.layer3(down3)
-        print(down4.size()) # 512
-        down5 = self.layer4(down4)
-        print(down5.size()) # 384
-        down5 = self.norm5(down5)
-
-        middle = self.trans4(down5)
-        print(middle.size())
-        out = F.upsample(middle, scale_factor=2, mode='bilinear')
-        down4 = self.trans3(down4)
-        out = torch.cat((out, down4), 1)
-        out = self.up_3(out)
-        print(out.size())
-
-        out = F.upsample(out, scale_factor=2, mode='bilinear')
-        down3 = self.trans2(down3)
-        out = torch.cat((out, down3), 1)
-        out = self.up_2(out)
-        print(out.size())
-
-        out = F.upsample(out, scale_factor=2, mode='bilinear')
-        down2 = self.trans1(down2)
-        out = torch.cat((out, down2), 1)
-        out = self.up_1(out)
-        print(out.size())
-
-        out = F.upsample(out, scale_factor=2, mode='bilinear')
-        down1 = self.trans0(down1)
-        out = torch.cat((out, down1), 1)
-        out = self.up_0(out)
-        print(out.size())
-        out = self.classify(out)
-        return out
+# class RefineNetV3_1024(nn.Module):
+#     def __init__(self, growth_rate=64, block_config=(1,2, 2, 2),
+#                  num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000):
+#         super(RefineNetV3_1024, self).__init__()
+#         self.num_features = num_init_features
+#         self.block_config = block_config
+#         self.conv1 = nn.Sequential(
+#             *make_conv_bn_relu(3, num_init_features),
+#             nn.MaxPool2d(2, 2)
+#         )                                               # 64*512*512
+#
+#         self.layer1 = self._make_layer(block_config[0], bn_size, growth_rate, drop_rate, 0) # 128*256*256
+#         self.layer2 = self._make_layer(block_config[1], bn_size, growth_rate, drop_rate, 1) # 256*128*128
+#         self.layer3 = self._make_layer(block_config[2], bn_size, growth_rate, drop_rate, 2) # 512*64*64
+#         self.layer4 = self._make_layer(block_config[0], bn_size, growth_rate, drop_rate, 3) # 352*32*32
+#         self.norm5 = nn.BatchNorm2d(self.num_features)
+#
+#         # middle transition
+#         self.trans4 = nn.Sequential(*make_conv_bn_relu(88, 256, kernel_size=1, padding=0))  # 512*32*32
+#
+#         # upblock
+#         self.up_3 = RCU(512, 256)  # 512*64*64
+#         self.trans3 = nn.Sequential(RCU(112, 256))
+#
+#         self.up_2 = RCU(320, 64)   # 256*128*128
+#         self.trans2 = nn.Sequential(RCU(96, 64))
+#
+#         self.up_1 = RCU(320, 64)   # 128*256*256
+#         self.trans1 = nn.Sequential(RCU(64, 256))
+#
+#         self.up_0 = RCU(128, 16)    # 64*512*512
+#         self.trans0 = nn.Sequential(RCU(64, 16))
+#
+#         self.classify = nn.Sequential(
+#             RCU(64, 32),
+#             nn.Upsample(scale_factor=2, mode='bilinear'),
+#             nn.Conv2d(32, 1, bias=True, padding=1, stride=1, kernel_size=3)
+#         )
+#
+#     def _make_layer(self, num_layers, bn_size, growth_rate, drop_rate, block_idx):
+#         denseblock = _DenseBlock(num_layers, self.num_features, bn_size, growth_rate, drop_rate)
+#         self.num_features = self.num_features + num_layers * growth_rate
+#         if block_idx != len(self.block_config):
+#             trans = _Transition(self.num_features, self.num_features//2)
+#             self.num_features = self.num_features//2
+#         return nn.Sequential(denseblock, trans)
+#
+#     def forward(self, x):
+#         down1 = self.conv1(x)
+#         print(down1.size()) # 64
+#         down2 = self.layer1(down1)
+#         print(down2.size()) # 128
+#         down3 = self.layer2(down2)
+#         print(down3.size()) # 256
+#         down4 = self.layer3(down3)
+#         print(down4.size()) # 512
+#         down5 = self.layer4(down4)
+#         print(down5.size()) # 384
+#         down5 = self.norm5(down5)
+#
+#         middle = self.trans4(down5)
+#         print(middle.size())
+#         out = F.upsample(middle, scale_factor=2, mode='bilinear')
+#         down4 = self.trans3(down4)
+#         out = torch.cat((out, down4), 1)
+#         out = self.up_3(out)
+#         print(out.size())
+#
+#         out = F.upsample(out, scale_factor=2, mode='bilinear')
+#         down3 = self.trans2(down3)
+#         out = torch.cat((out, down3), 1)
+#         out = self.up_2(out)
+#         print(out.size())
+#
+#         out = F.upsample(out, scale_factor=2, mode='bilinear')
+#         down2 = self.trans1(down2)
+#         out = torch.cat((out, down2), 1)
+#         out = self.up_1(out)
+#         print(out.size())
+#
+#         out = F.upsample(out, scale_factor=2, mode='bilinear')
+#         down1 = self.trans0(down1)
+#         out = torch.cat((out, down1), 1)
+#         out = self.up_0(out)
+#         print(out.size())
+#         out = self.classify(out)
+#         return out
 
 
 class RefineNetV2_1024(nn.Module):
