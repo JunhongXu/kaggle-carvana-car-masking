@@ -25,19 +25,19 @@ torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 60
 START_EPOCH = 0
-in_h = 640
-in_w = 960
-out_w = 960
-out_h = 640
+in_h = 960
+in_w = 1440
+out_w = 1440
+out_h = 960
 print_it = 30
-interval = 30000
+interval = 10
 NUM = 100064
 USE_WEIGHTING = True
 model_name = 'refinenetv4_1440*960_hq'
-BATCH = 4
+BATCH = 2
 EVAL_BATCH = 10
-DEBUG = False
-
+DEBUG = True
+is_training = False
 test_aug_dim = [(1152, 1152)]
 
 
@@ -107,7 +107,7 @@ def train(net):
             if idx == 0:
                 optimizer.zero_grad()
             loss.backward()
-            if idx % 5 == 0:
+            if idx % 15 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -222,12 +222,13 @@ if __name__ == '__main__':
         cv2.imshow('frame', mask.reshape(1024, 1024)*100)
         cv2.imshow('orig', img.reshape(1024, 1024, 3))
         cv2.waitKey()
-    valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=out_h,
-                                                          preload=False, num_works=2,
-                                                          out_w=out_w, mean=None, std=None), \
-                                     get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-                                                          out_h=out_h, out_w=out_w, mean=None, std=None)
-    train(net)
-
-    test(net)
-    do_submisssion()
+    if is_training:
+        valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=out_h,
+                                                              preload=False, num_works=2,
+                                                              out_w=out_w, mean=None, std=None), \
+                                         get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+                                                              out_h=out_h, out_w=out_w, mean=None, std=None)
+        train(net)
+    else:
+        test(net)
+        do_submisssion()
