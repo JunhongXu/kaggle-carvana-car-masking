@@ -33,7 +33,7 @@ class RCU(nn.Module):
 
 
 class RefineNetV3_1024(nn.Module):
-    def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
+    def __init__(self, growth_rate=64, block_config=(3, 6, 12, 8),
                  num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000):
         super(RefineNetV3_1024, self).__init__()
         self.num_features = num_init_features
@@ -321,11 +321,11 @@ class RefineNetV1_1024(nn.Module):
 
 if __name__ == '__main__':
     from torch.autograd import Variable
-    a = Variable(torch.randn((3, 3, 512, 768))).cuda()
-    resnet = RefineNetV3_1024(block_config=[6, 12, 24, 16]).cuda()
+    a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
+    resnet = RefineNetV3_1024()
     # resnet.load_params()
     resnet = nn.DataParallel(resnet)
-    # resnet.cuda()
+    resnet.cuda()
     # print(resnet(a))
     print(resnet(a))
     print(resnet)
