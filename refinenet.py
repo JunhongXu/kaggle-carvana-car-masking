@@ -33,7 +33,7 @@ class RCU(nn.Module):
 
 
 class RefineNetV3_1024(nn.Module):
-    def __init__(self, growth_rate=64, block_config=(3, 6, 12, 8),
+    def __init__(self, growth_rate=64, block_config=(3, 6, 10, 4),
                  num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000):
         super(RefineNetV3_1024, self).__init__()
         self.num_features = num_init_features
@@ -50,11 +50,11 @@ class RefineNetV3_1024(nn.Module):
         self.norm5 = nn.BatchNorm2d(self.num_features)
 
         # middle transition
-        self.trans4 = nn.Sequential(*make_conv_bn_relu(352, 512, kernel_size=1, padding=0))  # 512*32*32
+        self.trans4 = nn.Sequential(*make_conv_bn_relu(320, 512, kernel_size=1, padding=0))  # 512*32*32
 
         # upblock
         self.up_3 = RCU(1024, 512)  # 512*64*64
-        self.trans3 = nn.Sequential(RCU(512, 512))
+        self.trans3 = nn.Sequential(RCU(448, 512))
 
         self.up_2 = RCU(768, 256)   # 256*128*128
         self.trans2 = nn.Sequential(RCU(256, 256))
@@ -81,42 +81,42 @@ class RefineNetV3_1024(nn.Module):
 
     def forward(self, x):
         down1 = self.conv1(x)
-        # print(down1.size()) # 64
+        print(down1.size()) # 64
         down2 = self.layer1(down1)
-        # print(down2.size()) # 128
+        print(down2.size()) # 128
         down3 = self.layer2(down2)
-        # print(down3.size()) # 256
+        print(down3.size()) # 256
         down4 = self.layer3(down3)
-        # print(down4.size()) # 512
+        print(down4.size()) # 512
         down5 = self.layer4(down4)
-        # print(down5.size()) # 384
+        print(down5.size()) # 384
         down5 = self.norm5(down5)
 
         middle = self.trans4(down5)
-        # print(middle.size())
+        print(middle.size())
         out = F.upsample(middle, scale_factor=2, mode='bilinear')
         down4 = self.trans3(down4)
         out = torch.cat((out, down4), 1)
         out = self.up_3(out)
-        # print(out.size())
+        print(out.size())
 
         out = F.upsample(out, scale_factor=2, mode='bilinear')
         down3 = self.trans2(down3)
         out = torch.cat((out, down3), 1)
         out = self.up_2(out)
-        # print(out.size())
+        print(out.size())
 
         out = F.upsample(out, scale_factor=2, mode='bilinear')
         down2 = self.trans1(down2)
         out = torch.cat((out, down2), 1)
         out = self.up_1(out)
-        # print(out.size())
+        print(out.size())
 
         out = F.upsample(out, scale_factor=2, mode='bilinear')
         down1 = self.trans0(down1)
         out = torch.cat((out, down1), 1)
         out = self.up_0(out)
-        # print(out.size())
+        print(out.size())
         out = self.classify(out)
         return out
 
