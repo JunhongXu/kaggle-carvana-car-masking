@@ -321,10 +321,10 @@ class RefineNetV1_1024(nn.Module):
 
 if __name__ == '__main__':
     from torch.autograd import Variable
-    a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
+    a = Variable(torch.randn((3, 3, 512, 768))).cuda()
     resnet = RefineNetV3_1024(block_config=[6, 12, 24, 16]).cuda()
     # resnet.load_params()
-#    resnet = nn.DataParallel(resnet)
+    resnet = nn.DataParallel(resnet)
     # resnet.cuda()
     # print(resnet(a))
     print(resnet(a))
