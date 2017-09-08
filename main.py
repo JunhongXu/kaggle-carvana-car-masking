@@ -25,19 +25,19 @@ torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 60
 START_EPOCH = 0
-in_h = 1024
-in_w = 1024
-out_w = 1024
-out_h = 1024
+in_h = 512
+in_w = 512
+out_w = 512
+out_h = 512
 print_it = 30
-interval = 10
+interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv2_resnet34_1024*1024_hq'
-BATCH = 4
-EVAL_BATCH = 10
-DEBUG = True
-is_training = False
+model_name = 'refinenetv3_resnet50_512*512_hq'
+BATCH = 16
+EVAL_BATCH = 32
+DEBUG = False
+is_training = True
 test_aug_dim = [(1152, 1152)]
 
 
@@ -107,7 +107,7 @@ def train(net):
             if idx == 0:
                 optimizer.zero_grad()
             loss.backward()
-            if idx % 15 == 0:
+            if idx % 2 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -209,8 +209,8 @@ if __name__ == '__main__':
     # net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
     # net.load_params('resnet50')
     # net = nn.DataParallel(net).cuda()
-    net = RefineNetV2_1024(BasicBlock, [3, 4, 6, 3])
-    net.load_params('resnet34')
+    net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
+    net.load_params('resnet50')
     net = nn.DataParallel(net).cuda()
     if 0:
         net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))

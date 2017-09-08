@@ -173,7 +173,7 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
 
     # split(4788)
-    imgs = sorted(glob.glob(CARANA_DIR+'/refinenetv4_1200*800_transform_hq/*.png'))
+    imgs = sorted(glob.glob(CARANA_DIR+'/refinenetv3_resnet50_1024*1024_hq/*.png'))
     imgs_2 = sorted(glob.glob(CARANA_DIR+'/refinenetv4_1024_hq/*.png'))
    #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
     orig = sorted(glob.glob(CARANA_DIR+'/test_hq/*.jpg'))
