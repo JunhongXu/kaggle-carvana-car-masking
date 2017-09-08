@@ -46,8 +46,7 @@ class RefineNetV4_1024(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2) # 256*64*64
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2) # 512*32*32
 
-        self.middle = nn.Sequential(*make_conv_bn_relu(512, 1024, 1, padding=0)) # 1024*32*32
-        self.maxpool2 = nn.MaxPool2d(2, 2)                                       # 1024*16*16
+        self.middle = nn.Sequential(*make_conv_bn_relu(512, 1024, 1, padding=0), nn.MaxPool2d(2, 2)) # 1024*32*32
 
         self.refinenet3 = nn.Sequential(RCU(1024+512, 1024), RCU(1024, 512))       # 512*64*64
         self.trans3 = nn.Sequential(*make_conv_bn_relu(512, 512, 1, padding=0))
@@ -109,6 +108,12 @@ class RefineNetV4_1024(nn.Module):
         x3 = self.layer3(x2)    # 256*64*64
         x4 = self.layer4(x3)    # 512*32*32
 
+        print(x.size())
+        print(x1.size())
+        print(x2.size())
+        print(x3.size())
+        print(x4.size())
+
         middle = self.middle(x4)    # 1024*32*32
 
         out = F.upsample(middle, scale_factor=2, mode='bilinear')   # 1024*64*64
@@ -127,10 +132,15 @@ class RefineNetV4_1024(nn.Module):
         out = self.refinenet1(out)                              # 64*256*256
 
         # out = F.upsample(out, scale_factor=2, mode='bilinear')  # 64*512*512
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
         x1 = self.trans0(x1)
         out = torch.cat((x1, out), 1)
         out = self.refinenet0(out)                              # 64*256*256
-        out = F.upsample(out, mode='bilinear', scale_factor=2)
+
+        x = self.final_trans_0(x)
+        out = torch.cat((x, out), 1)
+        out = self.final_0(out)
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
 
         out = self.final(out)
 
@@ -442,10 +452,10 @@ class RefineNetV1_1024(nn.Module):
 if __name__ == '__main__':
     from torch.autograd import Variable
     a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
-    resnet = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
-    # resnet.load_params()
+    resnet = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3]).cuda()
+    resnet.load_params('resnet34')
     resnet = nn.DataParallel(resnet)
-    resnet.cuda()
+    # resnet.cuda()
     # print(resnet(a))
     print(resnet(a))
     print(resnet)
