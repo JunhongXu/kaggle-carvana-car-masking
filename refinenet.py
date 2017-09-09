@@ -31,6 +31,16 @@ class RCU(nn.Module):
         out += x
         return F.relu(out)
 
+
+class RefineNetV5_1024(nn.Module):
+    """Gated Feedback Refinenet VGG-16"""
+    def __init__(self):
+        super(RefineNetV5_1024, self).__init__()
+
+    def forward(self, x):
+        pass
+
+
 class RefineNetV4_1024(nn.Module):
     """ResNet-38"""
     def __init__(self, block, layers):

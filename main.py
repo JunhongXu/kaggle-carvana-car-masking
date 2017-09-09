@@ -38,7 +38,8 @@ BATCH = 16
 EVAL_BATCH = 32
 DEBUG = False
 is_training = True
-test_aug_dim = [(1152, 1152)]
+MULTI_SCALE = False
+scales = [(1152, 1152), (1024, 1024), (768, 768)]
 
 
 def lr_scheduler(optimizer, epoch):
@@ -140,6 +141,37 @@ def train(net):
     logger.file.close()
 
 
+def multi_scale(net, dataloader):
+    """
+    This function averages the multiple scales of predictions from RefineNetV3_1024 or RefineNetV4_1024
+    This function returns the predictions for each test dataloader slice
+    """
+    net.cuda()
+    net.eval()
+    size = len(dataloader.dataset)
+    score_maps = torch.FloatTensor(len(scales), size, in_h, in_w)
+    prev = 0
+    # predict and store the map for averaging
+    for idx, scale in enumerate(scales):
+        H, W = scale
+        upsample = None
+        if H != out_h and W != out_w:
+            upsample = nn.Upsample(size=(out_h, out_w), mode='bilinear')
+
+        dataloader.dataset.H, dataloader.dataset.W = H, W
+        # predict
+        for _, (img, _) in dataloader:
+            batch_size = img.size(0)
+            img = Variable(img, volatile=True).cuda()
+            score, _ = net(img)
+            if upsample is not None:
+                score = upsample(score)
+            score_maps[idx, prev:(prev+batch_size)] = score.cpu()
+            prev += batch_size
+    score_maps = F.sigmoid(torch.mean(score_maps, 0)).data.cpu().numpy()
+    return (score_maps > 0.5).astype(np.uint8)
+
+
 def test(net):
     """
     save the predicted mask image to .jpg file
@@ -147,6 +179,7 @@ def test(net):
     """
     # test
     upsampler = nn.Upsample(size=(out_h, out_w), mode='bilinear')
+    net.eval()
     net.load_state_dict(torch.load('models/'+model_name+'.pth'))
     if torch.cuda.is_available():
         net.cuda()
@@ -158,19 +191,13 @@ def test(net):
         e = (t+1) * interval
         if t == (times -1):
             e = NUM
-        # total_preds = np.zeros((e-s, out_h, out_w))
-        # for (_in_h, _in_w) in test_aug_dim:
-        test_loader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h, out_w=out_w,
-                                              mean=None, std=None)
-        pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
-        # total_preds = predictions + total_preds
-          #  del predictions
-          #  del pred_labels
-        # total_preds = total_preds >= ceil(len(test_aug_dim)/2)
-        # total_preds = expit(total_preds)
-        # print(total_preds.shape)
-        # total_preds = total_preds + predictions
-        # total_preds = total_preds / len(test_aug_dim)
+        test_loader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
+                                          out_w=out_w, mean=None, std=None)
+        if MULTI_SCALE:
+            pred_labels = multi_scale(net, test_loader)
+        else:
+            pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
+
         if DEBUG:
             for l, img in zip(pred_labels, test_loader.dataset.img_names):
                 mask = cv2.resize((l).astype(np.uint8),  (1918, 1280))
