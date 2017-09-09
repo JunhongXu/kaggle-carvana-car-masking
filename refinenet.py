@@ -108,11 +108,11 @@ class RefineNetV4_1024(nn.Module):
         x3 = self.layer3(x2)    # 256*64*64
         x4 = self.layer4(x3)    # 512*32*32
 
-        print(x.size())
-        print(x1.size())
-        print(x2.size())
-        print(x3.size())
-        print(x4.size())
+        # print(x.size())
+        # print(x1.size())
+        # print(x2.size())
+        # print(x3.size())
+        # print(x4.size())
 
         middle = self.middle(x4)    # 1024*32*32
 
@@ -451,7 +451,7 @@ class RefineNetV1_1024(nn.Module):
 
 if __name__ == '__main__':
     from torch.autograd import Variable
-    a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
+    a = Variable(torch.randn((6, 3, 1024, 1024))).cuda()
     resnet = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3]).cuda()
     resnet.load_params('resnet34')
     resnet = nn.DataParallel(resnet)

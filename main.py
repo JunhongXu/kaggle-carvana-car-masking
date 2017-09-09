@@ -9,7 +9,7 @@ from dataset import transform1, transform2, transform3, transform4,\
     mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
-from refinenet import RefineNetV1_1024, RefineNetV2_1024, Bottleneck, BasicBlock
+from refinenet import RefineNetV1_1024, RefineNetV2_1024, Bottleneck, BasicBlock, RefineNetV4_1024
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 import cv2
 from scipy.misc import imread
@@ -24,18 +24,18 @@ from matplotlib import pyplot as plt
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 60
-START_EPOCH = 0
-in_h = 512
-in_w = 512
-out_w = 512
-out_h = 512
+START_EPOCH = 30
+in_h = 1152
+in_w = 1152
+out_w = 1152
+out_h = 1152
 print_it = 30
 interval = 30000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv3_resnet50_512*512_hq'
-BATCH = 16
-EVAL_BATCH = 32
+model_name = 'refinenetv4_resnet34_1024*1024_hq'
+BATCH = 4
+EVAL_BATCH = 20
 DEBUG = False
 is_training = True
 test_aug_dim = [(1152, 1152)]
@@ -49,7 +49,7 @@ def lr_scheduler(optimizer, epoch):
     elif 30 < epoch <= 50:
         lr = 0.001
     else:
-        lr = 0.0007
+        lr = 0.0001
     for param in optimizer.param_groups:
         param['lr'] = lr
 
@@ -209,8 +209,8 @@ if __name__ == '__main__':
     # net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
     # net.load_params('resnet50')
     # net = nn.DataParallel(net).cuda()
-    net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
-    net.load_params('resnet50')
+    net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
+    net.load_params('resnet34')
     net = nn.DataParallel(net).cuda()
     if 0:
         net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
