@@ -174,7 +174,7 @@ if __name__ == '__main__':
 
     # split(4788)
     imgs = sorted(glob.glob(CARANA_DIR+'/refinenetv3_resnet50_1024*1024_hq/*.png'))
-    imgs_2 = sorted(glob.glob(CARANA_DIR+'/refinenetv4_1024_hq/*.png'))
+    imgs_2 = sorted(glob.glob(CARANA_DIR+'/refinenetv4_resnet34_1280*1280_hq/*.png'))
    #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
     orig = sorted(glob.glob(CARANA_DIR+'/test_hq/*.jpg'))
 

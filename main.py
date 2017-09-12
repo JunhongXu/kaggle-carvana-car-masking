@@ -23,32 +23,32 @@ from matplotlib import pyplot as plt
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
-EPOCH = 60
-START_EPOCH = 30
-in_h = 1152
-in_w = 1152
-out_w = 1152
-out_h = 1152
+EPOCH = 40
+START_EPOCH = 0
+in_h = 1280
+in_w = 1792
+out_w = 1792
+out_h = 1280
 print_it = 30
-interval = 30000
+interval = 20000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv4_resnet34_1024*1024_hq'
-BATCH = 4
-EVAL_BATCH = 20
+model_name = 'refinenetv4_resnet34_1280*1280_hq'
+BATCH = 2
+EVAL_BATCH = 10
 DEBUG = False
-is_training = True
+is_training = False
 MULTI_SCALE = False
-scales = [(1152, 1152), (1024, 1024), (768, 768)]
+scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
-        lr = 0.008
-    elif 10 < epoch<= 30:
-        lr = 0.005
-    elif 30 < epoch <= 50:
         lr = 0.001
+    elif 10 < epoch<= 30:
+        lr = 0.0005
+    elif 30 < epoch <= 50:
+        lr = 0.0001
     else:
         lr = 0.0001
     for param in optimizer.param_groups:
@@ -56,6 +56,7 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
+    net.load_state_dict(torch.load('models/refinenetv4_resnet34_1024*1024_hq.pth'))
     optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
     # softdice = SoftDiceLoss()
@@ -141,7 +142,7 @@ def train(net):
     logger.file.close()
 
 
-def multi_scale(net, dataloader):
+def multi_scale(net, dataloader, s, e):
     """
     This function averages the multiple scales of predictions from RefineNetV3_1024 or RefineNetV4_1024
     This function returns the predictions for each test dataloader slice
@@ -150,24 +151,28 @@ def multi_scale(net, dataloader):
     net.eval()
     size = len(dataloader.dataset)
     score_maps = torch.FloatTensor(len(scales), size, in_h, in_w)
-    prev = 0
+
     # predict and store the map for averaging
     for idx, scale in enumerate(scales):
+        print('\r Scale: %s' % idx, flush=True, end='')
         H, W = scale
         upsample = None
         if H != out_h and W != out_w:
             upsample = nn.Upsample(size=(out_h, out_w), mode='bilinear')
 
-        dataloader.dataset.H, dataloader.dataset.W = H, W
+        dataloader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
+                                          out_w=out_w, mean=None, std=None)
+        prev = 0
         # predict
-        for _, (img, _) in dataloader:
+        for (img, _) in dataloader:
             batch_size = img.size(0)
             img = Variable(img, volatile=True).cuda()
             score, _ = net(img)
             if upsample is not None:
                 score = upsample(score)
-            score_maps[idx, prev:(prev+batch_size)] = score.cpu()
+            score_maps[idx, prev:(prev+batch_size)] = score.data.cpu()
             prev += batch_size
+        del dataloader
     score_maps = F.sigmoid(torch.mean(score_maps, 0)).data.cpu().numpy()
     return (score_maps > 0.5).astype(np.uint8)
 
@@ -187,6 +192,7 @@ def test(net):
     times = ceil(NUM/interval)
 
     for t in range(0, int(times)):
+        print('Time ', t/times)
         s = t * interval
         e = (t+1) * interval
         if t == (times -1):
@@ -194,7 +200,7 @@ def test(net):
         test_loader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
                                           out_w=out_w, mean=None, std=None)
         if MULTI_SCALE:
-            pred_labels = multi_scale(net, test_loader)
+            pred_labels = multi_scale(net, test_loader, s, e)
         else:
             pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
 

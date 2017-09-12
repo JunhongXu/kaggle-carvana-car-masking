@@ -5,6 +5,8 @@ Kaggle Competition, hope I can win this one!
 
 9.2: RefineNet-v2 gets a better result. Validation accuracy at 0.9974 and LB: 0.9965
 
+9.12: RefineNet-V4 with hierarchical training: 1024 * 1024 -> 1152 * 1152 -> 1280 * 1792. Training: 0.00567/0.9980; Validation: 0.00691/0.9978
+
 -----------
 
 RefineNet-v1: Pre-trained ResNet-50 with features added to decoder
@@ -17,6 +19,4 @@ Add more augmentation: Just use horizontal flip and rotation.
 
 TODO:
 
-1. Try DenseNet.
-2. Try a larger batch size.
-3. Make predictions on different scales and average scores.
+1. Try Dense CRF for post-processing
