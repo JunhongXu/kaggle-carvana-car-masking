@@ -173,7 +173,7 @@ if __name__ == '__main__':
     from matplotlib import pyplot as plt
 
     # split(4788)
-    imgs = sorted(glob.glob(CARANA_DIR+'/refinenetv3_resnet50_1024*1024_hq/*.png'))
+    imgs = sorted(glob.glob(CARANA_DIR+'/ensemble-1/*.png'))
     imgs_2 = sorted(glob.glob(CARANA_DIR+'/refinenetv4_resnet34_1280*1280_hq/*.png'))
    #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
     orig = sorted(glob.glob(CARANA_DIR+'/test_hq/*.jpg'))
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     for img, img_2, img_ in zip(imgs, imgs_2, orig):
         plt.figure(figsize=(30,20))
         plt.subplot(1, 2, 1)
-        plt.title('960*640')
+        plt.title('ensemble-1')
         mask = (cv2.resize(imread(img), (1918, 1280)))
         img_ = (cv2.resize(imread(img_), (1918, 1280)))
         mask = cv2.resize((mask).astype(np.uint8),  (1918, 1280))

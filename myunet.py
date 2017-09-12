@@ -69,6 +69,8 @@ class SoftIoULoss(nn.Module):
         probs = F.sigmoid(logits)
         probs = probs.view(batch_size, -1)
         targets = targets.view(batch_size, -1)
+        if weight is not None:
+            weight = weight.view(batch_size, -1)
         intersection = torch.sum(probs * targets)
         union = torch.sum((probs + targets) - (probs * targets))
         iou = intersection / union

@@ -26,8 +26,8 @@ torch.cuda.manual_seed(0)
 EPOCH = 40
 START_EPOCH = 0
 in_h = 1280
-in_w = 1792
-out_w = 1792
+in_w = 1920
+out_w = 1920
 out_h = 1280
 print_it = 30
 interval = 20000
@@ -44,9 +44,9 @@ scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
-        lr = 0.001
-    elif 10 < epoch<= 30:
         lr = 0.0005
+    elif 10 < epoch<= 30:
+        lr = 0.0001
     elif 30 < epoch <= 50:
         lr = 0.0001
     else:
