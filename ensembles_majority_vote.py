@@ -17,7 +17,7 @@ ensembles = [
             ]
 NAME = 'ensemble-1'
 H, W = 1280, 1918
-interval = 10000
+interval = 1000
 TOTAL_TEST = 100064
 DEBUG = False
 
@@ -41,7 +41,7 @@ def do_ensemble():
     for e in ensembles:
         names = sorted(glob.glob(CARANA_DIR+'/{}/*.png'.format(e)))
         ensemble_img_names.append(names)
-    for t in range(times):
+    for t in range(times-1, times):
         print('\r[!]Process: %.4f' % (t/times), end='', flush=True)
         start = t * interval
         end = (t+1) * interval
@@ -49,13 +49,14 @@ def do_ensemble():
             end = TOTAL_TEST
 
         current_names = [e[start:end] for e in ensemble_img_names]
-        labels = np.zeros((interval, H, W), dtype=np.uint8)
+        labels = np.zeros((len(current_names[0]), H, W), dtype=np.uint8)
         for ensemble_idx in range(ensemble_len):
             current_images = current_names[ensemble_idx]
             images = read_imgs(current_images)
             if ensemble_idx == 0:
                 images = images * 2
             labels = labels + images
+            del images
         labels = (labels > (ensemble_len // 2)).astype(np.uint8)
 
         names = [name.split('/')[-1][:-4] for name in current_names[0]]
