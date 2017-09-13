@@ -31,11 +31,10 @@ std = [
 
 
 
-
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None, hq=True,
-                 test=False, preload=False, mean=None, std=None, start=None, end=None):
-        # TODO: add direction information????
+                 test=False, preload=False, mean=None, std=None, start=None, end=None, require_cls=False):
+        """require_cls: if requires class information"""
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
         self.out_h = out_h

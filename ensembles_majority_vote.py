@@ -10,10 +10,10 @@ import pandas as pd
 from util import run_length_encode
 
 ensembles = [
-                'refinenetv4_resnet34_1280*1280_hq',
-                'refinenetv4_resnet34_1024*1024_hq',
-                'refinenetv4_1024_hq',
-                'refinenetv3_resnet50_1024*1024_hq'
+                'refinenetv4_resnet34_1280*1280_hq',    # 0.9967
+                'refinenetv4_resnet34_1024*1024_hq',    # 0.9966
+                'refinenetv4_1024_hq',                  # 0.9965
+                'refinenetv3_resnet50_1024*1024_hq'     # 0.9965
             ]
 NAME = 'ensemble-1'
 H, W = 1280, 1918

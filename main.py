@@ -23,7 +23,7 @@ from matplotlib import pyplot as plt
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
-EPOCH = 40
+EPOCH = 20
 START_EPOCH = 0
 in_h = 1280
 in_w = 1920
@@ -33,20 +33,20 @@ print_it = 30
 interval = 20000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv4_resnet34_1280*1280_hq'
+model_name = 'refinenetv4_resnet34_1280*1920_hq'
 BATCH = 2
 EVAL_BATCH = 10
 DEBUG = False
-is_training = False
+is_training = True
 MULTI_SCALE = False
 scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
-        lr = 0.0005
+        lr = 0.0009
     elif 10 < epoch<= 30:
-        lr = 0.0001
+        lr = 0.0005
     elif 30 < epoch <= 50:
         lr = 0.0001
     else:
@@ -56,7 +56,7 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
-    net.load_state_dict(torch.load('models/refinenetv4_resnet34_1024*1024_hq.pth'))
+    net.load_state_dict(torch.load('models/refinenetv4_resnet34_1280*1280_hq.pth'))
     optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
     # softdice = SoftDiceLoss()
@@ -78,7 +78,7 @@ def train(net):
         lr_scheduler(optimizer, e)
         moving_bce_loss = 0.0
 
-        if e >25:
+        if e > 10:
             # reduce augmentation
             train_loader.dataset.transforms = transform2
 
