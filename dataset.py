@@ -108,7 +108,7 @@ class CarvanaDataSet(Dataset):
             img = toTensor(img)
             if self.normalize is not None:
                 img = self.normalize(img)
-            return img, 0
+            return img, self.img_names[index]
         else:
             if self.preload:
                 img = self.imgs[index]

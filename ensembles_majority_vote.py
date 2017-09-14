@@ -10,12 +10,13 @@ import pandas as pd
 from util import run_length_encode
 
 ensembles = [
+                'refinenetv4_resnet34_1280*1920_hq',
                 'refinenetv4_resnet34_1280*1280_hq',    # 0.9967
                 'refinenetv4_resnet34_1024*1024_hq',    # 0.9966
                 'refinenetv4_1024_hq',                  # 0.9965
                 'refinenetv3_resnet50_1024*1024_hq'     # 0.9965
             ]
-NAME = 'ensemble-1'
+NAME = 'ensemble-2'
 H, W = 1280, 1918
 interval = 1000
 TOTAL_TEST = 100064
@@ -41,7 +42,7 @@ def do_ensemble():
     for e in ensembles:
         names = sorted(glob.glob(CARANA_DIR+'/{}/*.png'.format(e)))
         ensemble_img_names.append(names)
-    for t in range(times-1, times):
+    for t in range(0, times):
         print('\r[!]Process: %.4f' % (t/times), end='', flush=True)
         start = t * interval
         end = (t+1) * interval
@@ -54,7 +55,7 @@ def do_ensemble():
             current_images = current_names[ensemble_idx]
             images = read_imgs(current_images)
             if ensemble_idx == 0:
-                images = images * 2
+                images = images * 1
             labels = labels + images
             del images
         labels = (labels > (ensemble_len // 2)).astype(np.uint8)
