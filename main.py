@@ -37,7 +37,7 @@ model_name = 'refinenetv4_resnet34_1280*1920_hq'
 BATCH = 2
 EVAL_BATCH = 10
 DEBUG = False
-is_training = True
+is_training = False
 MULTI_SCALE = False
 scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
