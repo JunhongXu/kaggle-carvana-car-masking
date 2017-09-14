@@ -27,5 +27,5 @@ RefineNet-v4: Pre-trained ResNet-34 with stacked features. (Trained on 1024->115
 TODO:
 
 1. Try more ensembles and look into difference between these single models.
-2. Try add a classification layer (this should be done in the dataset class).
-3. Try training 1280*1920 on RefineNetV4 (This is the simplest one to implement).
+2. Pre-training using classification combined on test and train datasets.
+3. Pseudo-labeling the test dataset.

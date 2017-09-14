@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import Sampler
 from torchvision.transforms import Compose, Normalize, Lambda
 import glob
 import numpy as np
@@ -30,10 +31,23 @@ std = [
 ]
 
 
+class PesudoLabelCarvanaDataSet(Dataset):
+    def __init__(self, split, H=1024, W=1024, out_h=1024, out_w=1024, transform=None, test=False, preload=False,
+                 start=None, end=None):
+        super(PesudoLabelCarvanaDataSet, self).__init__()
+
+    def __getitem__(self, index):
+        img = cv2.imread(self.images[index])
+        mask = np.array(Image.open(self.labels[index]))
+
+    def __len__(self):
+        pass
+
 
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None, hq=True,
-                 test=False, preload=False, mean=None, std=None, start=None, end=None, require_cls=False):
+                 test=False, preload=False, mean=None, std=None, start=None, end=None,
+                 require_cls=False, pesudo_label=False):
         """require_cls: if requires class information"""
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
@@ -294,6 +308,18 @@ def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_s
     return DataLoader(batch_size=batch_size, num_workers=4,
                       dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std, mean=mean, test=True,
                                             out_h=out_h, out_w=out_w))
+
+
+class PesudoSampler(Sampler):
+    def __init__(self, data_source):
+        super(PesudoSampler, self).__init__(data_source)
+        self.data_source = data_source
+
+    def __iter__(self):
+        pass
+
+    def __len__(self):
+        return len(self.data_source)
 
 
 if __name__ == '__main__':
