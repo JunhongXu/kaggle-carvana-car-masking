@@ -310,7 +310,7 @@ transform3 = Compose(
     [
         HorizontalFlip(),
         # RandomTransposeColor(),
-        RandomRotate(rotate_limit=(0, 0))
+        RandomRotate(rotate_limit=(20, 20))
     ]
 )
 
@@ -369,9 +369,7 @@ class PesudoSampler(Sampler):
         self.data_source = data_source
         self.weights = [self.sample_prob / self.num_sample for _ in range(self.num_sample)] + \
                        [self.pesudo_prob / self.num_pesudo for _ in range(self.num_pesudo)]
-        print(self.weights)
         self.weights = torch.DoubleTensor(self.weights)
-        print(sum(self.weights))
 
     def __iter__(self):
         return iter(torch.multinomial(self.weights, self.num_pesudo + self.num_sample, True))
