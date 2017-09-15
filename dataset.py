@@ -9,7 +9,9 @@ import torch
 import random
 import time
 import math
+from matplotlib import pyplot as plt
 
+random.seed(0)
 
 CARANA_DIR = '/media/jxu7/BACK-UP/Data/carvana'
 mean = [
@@ -33,16 +35,49 @@ std = [
 
 
 class PesudoLabelCarvanaDataSet(Dataset):
-    def __init__(self, split, H=1024, W=1024, out_h=1024, out_w=1024, transform=None, test=False, preload=False,
-                 start=None, end=None):
+    """This is just for the training set"""
+    def __init__(self, split='train_pesudo', H=1024, W=1024, out_h=1024, out_w=1024, transform=None):
         super(PesudoLabelCarvanaDataSet, self).__init__()
+        self.H = H
+        self.W = W
+        self.out_h = out_h
+        self.out_w = out_w
+        self.transform = transform
+
+        self.img_names = []     # combines with train and test image names
+        self.mask_names = []
+        with open(CARANA_DIR + '/split/' + split) as f:
+            content = f.readlines()
+        content = [line.strip('\n') for line in content]
+        self.num_pesudo = 0
+        self.num_sample = 0
+        for name in content:
+            self.img_names.append(CARANA_DIR + name + '.jpg')
+            img_name = name.split('/')[-1]
+            if 'test' in name:
+                self.mask_names.append(CARANA_DIR+'/train/pesudo_train_masks/{}.tiff'.format(img_name))
+                self.num_pesudo += 1
+            else:
+                self.num_sample += 1
+                self.mask_names.append(CARANA_DIR+'/train/train_masks/{}.gif'.format(img_name))
+        print('[!]Number of pesudo training samples:', self.num_pesudo)
 
     def __getitem__(self, index):
-        img = cv2.imread(self.images[index])
-        mask = np.array(Image.open(self.labels[index]))
+        img = cv2.imread(self.img_names[index])
+        mask = np.array(Image.open(self.mask_names[index]))
+
+        if self.transform is not None:
+            img, mask = self.transform((img, mask))
+
+        img /= 255.
+        img, mask = cv2.resize(img, (self.out_w, self.out_h)), cv2.resize(mask, (self.out_w, self.out_h))
+
+        img = toTensor(img)
+        mask = toTensor(mask)
+        return img, mask
 
     def __len__(self):
-        pass
+        return len(self.img_names)
 
 
 class CarvanaDataSet(Dataset):
@@ -51,7 +86,6 @@ class CarvanaDataSet(Dataset):
                  load_number=None):
         """require_cls: if requires class information"""
         super(CarvanaDataSet, self).__init__()
-        random.seed(0)
         self.H, self.W = H, W
         self.out_h = out_h
         self.out_w = out_w
@@ -308,6 +342,13 @@ def get_train_dataloader(split, mean, std, transforms=Compose([RandomCrop(), Hor
                                              transform=transforms))
 
 
+def get_pesudo_train_dataloader(in_h, in_w, out_h, out_w, batch_size, num_workers=6):
+    return DataLoader(
+        batch_size=batch_size, sampler=PesudoSampler, num_workers=num_workers,
+        dataset=PesudoLabelCarvanaDataSet(H=in_h, W=in_w, out_h=out_h, out_w=out_w, transform=transform3)
+    )
+
+
 def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None,
                         load_number=None):
     return DataLoader(batch_size=batch_size, num_workers=4,
@@ -318,38 +359,41 @@ def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_s
 
 class PesudoSampler(Sampler):
     def __init__(self, data_source):
-        super(PesudoSampler, self).__init__(data_source)
+        super(PesudoSampler, self).__init__(None)
+        self.num_pesudo = data_source.num_pesudo
+        self.num_sample = data_source.num_sample
+        self.sample_prob = 0.7
+        self.pesudo_prob = 0.3
         self.data_source = data_source
+        self.weights = [self.sample_prob / self.num_sample for _ in range(self.num_sample)] + \
+                       [self.pesudo_prob / self.num_pesudo for _ in range(self.num_pesudo)]
+        print(self.weights)
+        self.weights = torch.DoubleTensor(self.weights)
+        print(sum(self.weights))
 
     def __iter__(self):
-        pass
+        return iter(torch.multinomial(self.weights, self.num_pesudo + self.num_sample, True))
 
     def __len__(self):
         return len(self.data_source)
 
 
 if __name__ == '__main__':
-    # loader = get_valid_dataloader(1, H=640, W=960, preload=True, num_works=3)
-    # for data in loader:
-    #     i, l = data
-    #     cv2.imshow('f', i.numpy()[0].transpose(1, 2, 0))
-    #     cv2.imshow('l', l.numpy()[0]*100)
-    #     print(l[l==1].sum())
-    #     cv2.waitKey()
-    # calculate mean and std for each fold
-    # for i in range(5):
-    #     dataset = CarvanaDataSet('train-{}'.format(i), preload=True, test=False)
-    #     mean, std = dataset.mean_std()
-    #     print('Fold {}--mean: {}, std: {}'.format(i, mean, std))
-     #    del dataset
-    # dataset = get_train_dataloader('train-4788', H=1024, W=1024, out_h=1024, out_w=1024, batch_size=1,
-    #                                   mean=None, std=None, )
-    # for img, label in dataset:
-    #     img = np.transpose(img.cpu().numpy(), axes=(0, 2, 3, 1))
-    #     label = label.cpu().numpy()
-    #     print(img.shape, label.shape)
-    #     cv2.imshow('image', np.squeeze(img))
-    #     cv2.imshow('label', np.squeeze(label))
-    #     cv2.waitKey()
-    dataset = CarvanaDataSet('train-4788', preload=True, H=800, W=1200)
-    print(dataset.mean_std())
+    # sampler = BatchSampler(PesudoSampler(), 64, False)
+    # num_sample = 0
+    # num_pesudo = 0
+    # for idx in sampler:
+    #     idx = np.array(idx)
+    #     num_sample += np.sum((idx < 4788).astype(int))
+    #     num_pesudo += np.sum((idx >= 4788).astype(int))
+    #     print(idx)
+    # print(num_pesudo/num_sample)
+    pesudo_loader = get_pesudo_train_dataloader(1024, 1024, 1024, 1024, 4)
+    for imgs, masks in pesudo_loader:
+        for img, mask in zip(imgs, masks):
+            img, mask = img.data.cpu().numpy(), mask.data.cpu().numpy()
+            img = img.transpose(1, 2, 0)
+            mask = np.ma.masked_where(mask == 0, mask)
+            plt.imshow(img)
+            plt.imshow(mask)
+            plt.show()
