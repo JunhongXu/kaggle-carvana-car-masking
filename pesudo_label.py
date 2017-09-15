@@ -6,6 +6,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 from torch.nn import functional as F
 from scipy.misc import imsave
+import glob
 from refinenet import RefineNetV2_1024, RefineNetV4_1024, RefineNetV3_1024, BasicBlock, Bottleneck
 from matplotlib import pyplot as plt
 from PIL import Image
@@ -94,15 +95,28 @@ def save_pesudo_label(probs, names):
         image.save(CARANA_DIR + '/train/train_pesudo_masks/{}.tiff'.format(name))
 
 
-def split_test():
-    """Random choose images from test_hq folder and save them to train/pesudo_train/"""
-
-
 def gen_split_indices():
     """
         Generate split indices from train/train_hq and test/pesudo_train and save in the split/train_pesudo file.
         Each row has a format of either train_hq/image_name or pesudo/image_name to be parsed in the dataset.
     """
+    filename = CARANA_DIR + '/split/' + 'train_pesudo'
+
+    # read the original split file
+    with open(CARANA_DIR + '/split/' + 'train-4788') as f:
+        content = f.readlines()
+    orig_file = ['/train/train_hq/'+line.strip('\n') for line in content]
+
+    # read the image names pesudo labeled by the ensemble
+    pesudo_label_file =['/test_hq/'+name[:-5] for name in glob.glob(CARANA_DIR + '/train/' + 'train_pesudo/*.tiff')]
+
+    file = orig_file + pesudo_label_file
+
+    # save these indices
+    with open(filename, 'w') as f:
+        for line in file:
+            f.write(line+'\n')
+
 
 def train():
     pass
