@@ -108,10 +108,9 @@ def gen_split_indices():
     orig_file = ['/train/train_hq/'+line.strip('\n') for line in content]
 
     # read the image names pesudo labeled by the ensemble
-    pesudo_label_file =['/test_hq/'+name[:-5] for name in glob.glob(CARANA_DIR + '/train/' + 'train_pesudo/*.tiff')]
+    pesudo_label_file =['/test_hq/'+name.split('/')[-1][:-5] for name in glob.glob(CARANA_DIR + '/train/' + 'train_pesudo_masks/*.tiff')]
 
     file = orig_file + pesudo_label_file
-
     # save these indices
     with open(filename, 'w') as f:
         for line in file:
@@ -131,7 +130,7 @@ def do_submission():
 
 
 if __name__ == '__main__':
-    ensembles, dim = build_ensembles()
-    do_pesudo_label(ensembles, dim, debug=False)
+    # ensembles, dim = build_ensembles()
+    # do_pesudo_label(ensembles, dim, debug=False)
     # split_test()
-    # gen_split_indices()
+    gen_split_indices()
