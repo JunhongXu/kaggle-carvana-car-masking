@@ -309,8 +309,8 @@ transform2 = HorizontalFlip()
 transform3 = Compose(
     [
         HorizontalFlip(),
-        # RandomTransposeColor(),
-        RandomRotate(rotate_limit=(20, 20))
+        RandomTransposeColor(),
+        RandomRotate(rotate_limit=(-2, 2))
     ]
 )
 

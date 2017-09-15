@@ -44,9 +44,9 @@ scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
-        lr = 0.0009
+        lr = 0.01
     elif 10 < epoch<= 30:
-        lr = 0.0005
+        lr = 0.005
     elif 30 < epoch <= 50:
         lr = 0.0001
     else:

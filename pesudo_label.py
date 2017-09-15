@@ -1,9 +1,14 @@
 import torch
-from dataset import CARANA_DIR, CarvanaDataSet, get_test_dataloader
+from dataset import CARANA_DIR, get_pesudo_train_dataloader, get_test_dataloader, get_valid_dataloader, \
+    transform1, transform2, transform3
 import cv2
 import numpy as np
 from torch.autograd import Variable
 import torch.nn as nn
+from torch.optim import SGD
+from main import BCELoss2d, SoftIoULoss, calculate_weight, lr_scheduler
+import time
+from util import Logger, dice_coeff, pred, evaluate
 from torch.nn import functional as F
 from scipy.misc import imsave
 import glob
@@ -14,6 +19,10 @@ from PIL import Image
 out_h, out_w = 1280, 1918
 interval = 100
 load_number = 3000
+START_EPOCH = 0
+END_EPOCH = 50
+print_it = 20
+EVAL_BATCH = 20
 
 
 def build_ensembles():
@@ -118,7 +127,99 @@ def gen_split_indices():
 
 
 def train():
-    pass
+    in_h, in_w, train_out_h, train_out_w = 512, 512, 512, 512
+    model_name = 'refinenetv4_resnet34_512*512_pesudo'
+    train_loader = get_pesudo_train_dataloader(in_h, in_w, out_h, out_w, 12)
+    valid_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=out_h,
+                                                              preload=False, num_works=2,
+                                                              out_w=out_w, mean=None, std=None)
+
+    net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
+
+    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9,
+                    weight_decay=0.0005)  ###0.0005
+    bce2d = BCELoss2d()
+    # softdice = SoftDiceLoss()
+    softiou = SoftIoULoss()
+    if torch.cuda.is_available():
+        net.cuda()
+    logger = Logger(str(model_name))
+    logger.write('-----------------------Network config-------------------\n')
+    logger.write(str(net) + '\n')
+    train_loader.dataset.transforms = transform3
+    if START_EPOCH > 0:
+        net.load_state_dict(torch.load('models/' + model_name + '.pth'))
+        logger.write(('------------Resume training %s from %s---------------\n' % (model_name, START_EPOCH)))
+    # train
+    logger.write('EPOCH || BCE loss || Avg BCE loss || Train Acc || Val loss || Val Acc || Time\n')
+    best_val_loss = 0.0
+    for e in range(START_EPOCH, END_EPOCH):
+        # iterate over batches
+        lr_scheduler(optimizer, e)
+        moving_bce_loss = 0.0
+
+        if e > 10:
+            # reduce augmentation
+            train_loader.dataset.transforms = transform2
+
+        num = 0
+        total = len(train_loader.dataset.img_names)
+        tic = time.time()
+        for idx, (img, label) in enumerate(train_loader):
+            net.train()
+            num += img.size(0)
+            img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
+            # label = label.long()
+            label = Variable(label.cuda()) if torch.cuda.is_available() else Variable(label)
+            out, logits = net(img)
+            # out = out.Long()
+            weight = calculate_weight(label)
+            bce_loss = bce2d(out, label, weight=weight)
+            loss = bce_loss + softiou(out, label)
+            moving_bce_loss += bce_loss.data[0]
+
+            logits = logits.data.cpu().numpy() > 0.5
+            train_acc = dice_coeff(np.squeeze(logits), label.data.cpu().numpy())
+            # optimizer.zero_grad()
+            # do backward pass
+            # loss.backward()
+            # update
+            # optimizer.step()
+
+            if idx == 0:
+                optimizer.zero_grad()
+            loss.backward()
+            if idx % 2 == 0:
+                optimizer.step()
+                optimizer.zero_grad()
+
+            if idx % print_it == 0:
+                smooth_loss = moving_bce_loss / (idx + 1)
+                tac = time.time()
+                print('\r %.3f || %.5f || %.5f || %.4f || ... || ... || % .2f'
+                      % (num / total, bce_loss.data[0], smooth_loss, train_acc, (tac - tic) / 60),
+                      flush=True, end='')
+
+        if e % 1 == 0:
+            # validate
+            smooth_loss = moving_bce_loss / (idx + 1)
+            pred_labels = pred(valid_loader, net)
+            valid_loss = evaluate(valid_loader, net, bce2d)
+            # print(pred_labels)
+            dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
+            tac = time.time()
+            print('\r %s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f'
+                  % (e, bce_loss.data[0], smooth_loss, train_acc, valid_loss, dice, (tac - tic) / 60),
+                  flush=True, end='')
+            print('\n')
+            logger.write('%s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f\n'
+                         % (e, bce_loss.data[0], smooth_loss, train_acc, valid_loss, dice, (tac - tic) / 60), False)
+            logger.log(train_acc, dice, time=(tac - tic) / 60, train_loss=bce_loss.data[0], val_loss=valid_loss)
+            if best_val_loss < dice:
+                torch.save(net.state_dict(), 'models/' + model_name + '.pth')
+                best_val_loss = dice
+        logger.save()
+        logger.file.close()
 
 
 def test():
@@ -133,4 +234,5 @@ if __name__ == '__main__':
     # ensembles, dim = build_ensembles()
     # do_pesudo_label(ensembles, dim, debug=False)
     # split_test()
-    gen_split_indices()
+    # gen_split_indices()
+    train()
