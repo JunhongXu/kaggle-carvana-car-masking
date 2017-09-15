@@ -55,11 +55,11 @@ class PesudoLabelCarvanaDataSet(Dataset):
             self.img_names.append(CARANA_DIR + name + '.jpg')
             img_name = name.split('/')[-1]
             if 'test' in name:
-                self.mask_names.append(CARANA_DIR+'/train/pesudo_train_masks/{}.tiff'.format(img_name))
+                self.mask_names.append(CARANA_DIR+'/train/train_pesudo_masks/{}.tiff'.format(img_name))
                 self.num_pesudo += 1
             else:
                 self.num_sample += 1
-                self.mask_names.append(CARANA_DIR+'/train/train_masks/{}.gif'.format(img_name))
+                self.mask_names.append(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(img_name))
         print('[!]Number of pesudo training samples:', self.num_pesudo)
 
     def __getitem__(self, index):
@@ -69,12 +69,12 @@ class PesudoLabelCarvanaDataSet(Dataset):
         if self.transform is not None:
             img, mask = self.transform((img, mask))
 
-        img /= 255.
+        img = img/255.
         img, mask = cv2.resize(img, (self.out_w, self.out_h)), cv2.resize(mask, (self.out_w, self.out_h))
 
         img = toTensor(img)
         mask = toTensor(mask)
-        return img, mask
+        return img, mask, self.mask_names[index]
 
     def __len__(self):
         return len(self.img_names)
@@ -343,9 +343,11 @@ def get_train_dataloader(split, mean, std, transforms=Compose([RandomCrop(), Hor
 
 
 def get_pesudo_train_dataloader(in_h, in_w, out_h, out_w, batch_size, num_workers=6):
+    dataset = PesudoLabelCarvanaDataSet(H=in_h, W=in_w, out_h=out_h, out_w=out_w, transform=transform3)
+
     return DataLoader(
-        batch_size=batch_size, sampler=PesudoSampler, num_workers=num_workers,
-        dataset=PesudoLabelCarvanaDataSet(H=in_h, W=in_w, out_h=out_h, out_w=out_w, transform=transform3)
+        batch_size=batch_size, sampler=PesudoSampler(dataset), num_workers=num_workers,
+        dataset=dataset
     )
 
 
@@ -389,11 +391,13 @@ if __name__ == '__main__':
     #     print(idx)
     # print(num_pesudo/num_sample)
     pesudo_loader = get_pesudo_train_dataloader(1024, 1024, 1024, 1024, 4)
-    for imgs, masks in pesudo_loader:
-        for img, mask in zip(imgs, masks):
-            img, mask = img.data.cpu().numpy(), mask.data.cpu().numpy()
+    print(pesudo_loader)
+    for imgs, masks, names in pesudo_loader:
+        for img, mask, name in zip(imgs, masks, names):
+            img, mask = img.cpu().numpy(), mask.cpu().numpy()
             img = img.transpose(1, 2, 0)
             mask = np.ma.masked_where(mask == 0, mask)
             plt.imshow(img)
-            plt.imshow(mask)
+            plt.imshow(mask, 'jet', alpha=0.7)
+            print(name)
             plt.show()
