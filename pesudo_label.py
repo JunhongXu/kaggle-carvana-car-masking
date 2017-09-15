@@ -5,11 +5,14 @@ import numpy as np
 from torch.autograd import Variable
 import torch.nn as nn
 from torch.nn import functional as F
+from scipy.misc import imsave
 from refinenet import RefineNetV2_1024, RefineNetV4_1024, RefineNetV3_1024, BasicBlock, Bottleneck
 from matplotlib import pyplot as plt
+from PIL import Image
 
 out_h, out_w = 1280, 1918
-interval = 10
+interval = 100
+load_number = 3000
 
 
 def build_ensembles():
@@ -32,49 +35,49 @@ def build_ensembles():
 def do_pesudo_label(ensembles, dims, debug=False):
     """Save averaged probabilities into folder train/pesudo_masks/"""
     # ensembles is a tuple of single best models
-    size = 100064
-    times = size//interval
+    times = load_number//interval
     # score_maps = torch.FloatTensor(len(scales), size, 1280, 1918)
 
     # predict and store the map for averaging
     for t in range(times):
         start = t * interval
         end = (t+1) * interval
-        if t == (size - 1):
-            end = size
-        prob_maps = np.empty((interval, out_h, out_w))
+        if t == (times - 1):
+            end = load_number
+        prob_maps = np.zeros((interval, out_h, out_w))
         names = []
         for idx, scale in enumerate(dims):
-            print('\r Scale: %s' % idx, flush=True, end='')
+            print('\rScale: %s' % idx, flush=True, end='')
             H, W = scale
             upsample = None
             if H != out_h or W != out_w:
                 upsample = nn.Upsample(size=(out_h, out_w), mode='bilinear')
             dataloader = get_test_dataloader(batch_size=10, H=H, W=W, start=start, end=end, out_h=out_h,
-                                              out_w=out_w, mean=None, std=None)
+                                             load_number=load_number, out_w=out_w, mean=None, std=None)
             prev = 0
             # predict
             net = ensembles[idx]
             net.eval()
+            single_model_pred = np.zeros((interval, out_h, out_w))
             for (img, name) in dataloader:
                 batch_size = img.size(0)
                 img = Variable(img, volatile=True).cuda()
                 _, preds = net(img)
                 if upsample is not None:
                     preds = upsample(preds)
-                prob_maps[prev:(prev+batch_size)] = np.squeeze(preds.data.cpu().numpy())
+                single_model_pred[prev:(prev+batch_size)] = np.squeeze(preds.data.cpu().numpy())
                 prev += batch_size
                 names += name
+            prob_maps = single_model_pred + prob_maps
+            del single_model_pred
             del dataloader
         prob_maps = prob_maps / len(ensembles)
         if debug:
             for prob, img in zip(prob_maps, names):
+                print(img)
                 img = cv2.imread(img)
-                print(prob.shape)
                 mask = (prob > 0.5).astype(np.uint8)
-                print(prob)
                 mask = np.ma.masked_where(mask==0, mask)
-                print(mask)
                 plt.subplot(1, 2, 1)
                 plt.imshow(img)
                 plt.imshow(mask, 'jet', alpha=0.6)
@@ -82,37 +85,13 @@ def do_pesudo_label(ensembles, dims, debug=False):
                 plt.imshow(prob)
                 plt.show()
         save_pesudo_label(prob_maps, names)
-        # del dataloader
-        # loaders = [get_test_dataloader(batch_size=10, mean=None, std=None, out_h=h, out_w=w, H=h, W=w) for (h, w) in dims]
-
-    # for data_idx, dataset in enumerate(loaders):
-    #     for image, names in dataset:
-    #         image = Variable(image, volatile=True)
-    #         N = image.size(0)
-    #         probs = np.empty((N, 1280, 1918))
-    #         for e in ensembles:
-    #             score, prob = e(image)
-    #             prob = F.upsample(prob, size=(1280, 1918))
-    #             prob = prob.data.cpu().numpy()
-    #             prob = prob.squeeze()
-    #             probs = probs + prob
-    #         probs = probs / len(ensembles)
-    #         if debug:
-    #             for prob, img in zip(probs, image):
-    #                 img = img.data.cpu().numpy().squeeze()
-    #                 img = np.transpose(img, (1, 2, 0))
-    #                 mask = (prob > 0.5).astpye(np.uint8)
-    #                 mask = np.ma.masked_where(mask == 1, mask)
-    #                 plt.subplot(1, 2, 1)
-    #                 plt.imshow(img)
-    #                 plt.imshow(mask, 'jet', alpha=0.6)
-    #                 plt.subplot(1, 2, 2)
-    #                 plt.imshow(prob)
-    #         save_pesudo_label(probs, names)
 
 
 def save_pesudo_label(probs, names):
-    pass
+    for prob, name in zip(probs, names):
+        name = name.split('/')[-1][:-4]
+        image = Image.fromarray(prob)
+        image.save(CARANA_DIR + '/train/train_pesudo_masks/{}.tiff'.format(name))
 
 
 def split_test():
@@ -139,6 +118,6 @@ def do_submission():
 
 if __name__ == '__main__':
     ensembles, dim = build_ensembles()
-    do_pesudo_label(ensembles, dim, debug=True)
-    split_test()
-    gen_split_indices()
+    do_pesudo_label(ensembles, dim, debug=False)
+    # split_test()
+    # gen_split_indices()

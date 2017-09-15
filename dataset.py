@@ -10,6 +10,7 @@ import random
 import time
 import math
 
+
 CARANA_DIR = '/media/jxu7/BACK-UP/Data/carvana'
 mean = [
     [0.68581734522164306, 0.69262389716232575, 0.69997227996210665],
@@ -47,9 +48,10 @@ class PesudoLabelCarvanaDataSet(Dataset):
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None, hq=True,
                  test=False, preload=False, mean=None, std=None, start=None, end=None,
-                 require_cls=False, pesudo_label=False):
+                 load_number=None):
         """require_cls: if requires class information"""
         super(CarvanaDataSet, self).__init__()
+        random.seed(0)
         self.H, self.W = H, W
         self.out_h = out_h
         self.out_w = out_w
@@ -84,9 +86,11 @@ class CarvanaDataSet(Dataset):
                         self.labels[i] = l
         else:
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if not hq else CARANA_DIR+'/test_hq/*.jpg')
+            if load_number is not None:
+                self.img_names = random.sample(self.img_names, load_number)
             print(len(self.img_names))
             if start is not None and end is not None:
-                self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if not hq else CARANA_DIR+'/test_hq/*.jpg')[start:end]
+                self.img_names = self.img_names[start:end]
         print('Number of samples {}'.format(len(self.img_names)))
         print('Total loading time %.2f' % (time.time() - t))
         print('Done Loading!')
@@ -304,9 +308,11 @@ def get_train_dataloader(split, mean, std, transforms=Compose([RandomCrop(), Hor
                                              transform=transforms))
 
 
-def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None):
+def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None,
+                        load_number=None):
     return DataLoader(batch_size=batch_size, num_workers=4,
-                      dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std, mean=mean, test=True,
+                      dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std, load_number=load_number,
+                                             mean=mean, test=True,
                                             out_h=out_h, out_w=out_w))
 
 
