@@ -71,6 +71,7 @@ def dice_coeff(preds, targets):
     """
     preds and targets are two torch tensors with size N*H*W
     """
+    targets = (targets > 0.5).astype(int)
     intersection = np.sum((preds * targets).astype(int))
     im_sum = preds.sum() + targets.sum()
     return (2. * intersection) / im_sum

@@ -1,5 +1,5 @@
 import torch
-from dataset import CARANA_DIR, get_pesudo_train_dataloader, get_test_dataloader, get_valid_dataloader, \
+from dataset import CARANA_DIR, get_pesudo_train_dataloader, get_test_dataloader, get_valid_dataloader, get_train_dataloader,\
     transform1, transform2, transform3
 import cv2
 import numpy as np
@@ -127,15 +127,20 @@ def gen_split_indices():
 
 
 def train():
-    in_h, in_w, train_out_h, train_out_w = 512, 512, 512, 512
-    model_name = 'refinenetv4_resnet34_512*512_pesudo'
-    train_loader = get_pesudo_train_dataloader(in_h, in_w, out_h, out_w, 12)
-    valid_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=out_h,
+    in_h, in_w, train_out_h, train_out_w = 1024, 1024, 1024, 1024
+    # model_name = 'refinenetv4_resnet34_512*512'
+    model_name = 'refinenetv4_resnet34_1024*1024_pesudo'
+    train_loader = get_pesudo_train_dataloader(in_h, in_w, train_out_h, train_out_w, 6)
+    # train_loader = get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=16, num_works=6,
+    #                                                           out_h=train_out_h, out_w=train_out_w, mean=None, std=None)
+    valid_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=train_out_h,
                                                               preload=False, num_works=2,
-                                                              out_w=out_w, mean=None, std=None)
+                                                              out_w=train_out_w, mean=None, std=None)
 
     net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
-
+    # net.load_params('resnet34')
+    net = nn.DataParallel(net)
+    net.load_state_dict(torch.load('models/refinenetv4_resnet34_512*512_pesudo.pth'))
     optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9,
                     weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
@@ -158,14 +163,14 @@ def train():
         lr_scheduler(optimizer, e)
         moving_bce_loss = 0.0
 
-        if e > 10:
+        if e > 20:
             # reduce augmentation
             train_loader.dataset.transforms = transform2
 
         num = 0
         total = len(train_loader.dataset.img_names)
         tic = time.time()
-        for idx, (img, label) in enumerate(train_loader):
+        for idx, (img, label, _) in enumerate(train_loader):
             net.train()
             num += img.size(0)
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
@@ -218,8 +223,8 @@ def train():
             if best_val_loss < dice:
                 torch.save(net.state_dict(), 'models/' + model_name + '.pth')
                 best_val_loss = dice
-        logger.save()
-        logger.file.close()
+    logger.save()
+    logger.file.close()
 
 
 def test():
