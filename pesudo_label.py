@@ -127,10 +127,10 @@ def gen_split_indices():
 
 
 def train():
-    in_h, in_w, train_out_h, train_out_w = 1024, 1024, 1024, 1024
+    in_h, in_w, train_out_h, train_out_w = 1280, 1920, 1280, 1920
     # model_name = 'refinenetv4_resnet34_512*512'
     model_name = 'refinenetv4_resnet34_1024*1024_pesudo'
-    train_loader = get_pesudo_train_dataloader(in_h, in_w, train_out_h, train_out_w, 6)
+    train_loader = get_pesudo_train_dataloader(in_h, in_w, train_out_h, train_out_w, 2)
     # train_loader = get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=16, num_works=6,
     #                                                           out_h=train_out_h, out_w=train_out_w, mean=None, std=None)
     valid_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=train_out_h,

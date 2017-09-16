@@ -77,7 +77,7 @@ class PesudoLabelCarvanaDataSet(Dataset):
         return img, mask, self.mask_names[index]
 
     def __len__(self):
-        return len(self.img_names)
+        return self.num_sample
 
 
 class CarvanaDataSet(Dataset):
@@ -375,7 +375,7 @@ class PesudoSampler(Sampler):
         return iter(torch.multinomial(self.weights, self.num_pesudo + self.num_sample, True))
 
     def __len__(self):
-        return len(self.data_source)
+        return self.num_sample
 
 
 if __name__ == '__main__':
