@@ -107,6 +107,15 @@ def pretrain():
     logger.write('EPOCH || CLS loss || Avg CLS loss || Train Acc || Val loss || Val Acc || Time\n')
     if start > 0:
         net.load_state_dict(torch.load('models/'+PRE_TRAIN_MODEL_NAME+'.pth'))
+
+    if DEBUG:
+        labels, eval_loss, eval_acc = evaluate(net, valid_loader, criterion)
+        img_names = valid_loader.dataset.img_names
+        for label, img_name in zip(labels, img_names):
+            cv2.imshow('pic', cv2.imread(img_name))
+            print(idx2label[label])
+            cv2.waitKey()
+
     for e in range(start, end):
         tic = time.time()
         net.train()
@@ -138,12 +147,6 @@ def pretrain():
 
         if e % 1 == 0:
             labels, eval_loss, eval_acc = evaluate(net, valid_loader, criterion)
-            if DEBUG:
-                img_names = valid_loader.dataset.img_names
-                for label, img_name in zip(labels, img_names):
-                    cv2.imshow('pic', cv2.imread(img_name))
-                    print(idx2label[label])
-                    cv2.waitKey()
 
             tac = time.time()
             print('\r %s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f'
