@@ -19,10 +19,10 @@ from PIL import Image
 out_h, out_w = 1280, 1918
 interval = 100
 load_number = 3000
-START_EPOCH = 0
+START_EPOCH = 12
 END_EPOCH = 50
 print_it = 20
-EVAL_BATCH = 20
+EVAL_BATCH = 10
 
 
 def build_ensembles():
@@ -129,7 +129,7 @@ def gen_split_indices():
 def train():
     in_h, in_w, train_out_h, train_out_w = 1280, 1920, 1280, 1920
     # model_name = 'refinenetv4_resnet34_512*512'
-    model_name = 'refinenetv4_resnet34_1024*1024_pesudo'
+    model_name = 'refinenetv4_resnet34_1280*1920_pesudo'
     train_loader = get_pesudo_train_dataloader(in_h, in_w, train_out_h, train_out_w, 2)
     # train_loader = get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=16, num_works=6,
     #                                                           out_h=train_out_h, out_w=train_out_w, mean=None, std=None)
@@ -140,7 +140,7 @@ def train():
     net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
     # net.load_params('resnet34')
     net = nn.DataParallel(net)
-    net.load_state_dict(torch.load('models/refinenetv4_resnet34_512*512_pesudo.pth'))
+    net.load_state_dict(torch.load('models/refinenetv4_resnet34_1280*1920_pesudo.pth'))
     optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9,
                     weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
@@ -168,9 +168,9 @@ def train():
             train_loader.dataset.transforms = transform2
 
         num = 0
-        total = len(train_loader.dataset.img_names)
+        total = train_loader.dataset.num_sample
         tic = time.time()
-        for idx, (img, label, _) in enumerate(train_loader):
+        for idx, (img, label, name) in enumerate(train_loader):
             net.train()
             num += img.size(0)
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
@@ -178,9 +178,13 @@ def train():
             label = Variable(label.cuda()) if torch.cuda.is_available() else Variable(label)
             out, logits = net(img)
             # out = out.Long()
+            # if 'test' in name:
             weight = calculate_weight(label)
+            # else:
+            #     weight = None
             bce_loss = bce2d(out, label, weight=weight)
             loss = bce_loss + softiou(out, label)
+            # loss = bce_loss
             moving_bce_loss += bce_loss.data[0]
 
             logits = logits.data.cpu().numpy() > 0.5

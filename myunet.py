@@ -31,6 +31,8 @@ class BCELoss2d(nn.Module):
         self.bce_loss = nn.BCELoss(weight, size_average)
 
     def forward(self, logits, targets, weight=None):
+        if weight is None:
+            weight = Variable(torch.ones(*targets.size())).cuda()
         w = weight.view(-1)
         z = logits.view(-1)
         t = targets.view(-1)
@@ -65,6 +67,7 @@ class SoftIoULoss(nn.Module):
         super(SoftIoULoss, self).__init__()
 
     def forward(self, logits, targets, weight=None):
+        targets = (targets > 0.5).float()
         batch_size = targets.size(0)
         probs = F.sigmoid(logits)
         probs = probs.view(batch_size, -1)

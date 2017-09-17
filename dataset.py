@@ -61,6 +61,7 @@ class PesudoLabelCarvanaDataSet(Dataset):
                 self.num_sample += 1
                 self.mask_names.append(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(img_name))
         print('[!]Number of pesudo training samples:', self.num_pesudo)
+        print('[!]Number of training samples:', self.num_sample)
 
     def __getitem__(self, index):
         img = cv2.imread(self.img_names[index])
@@ -372,7 +373,7 @@ class PesudoSampler(Sampler):
         self.weights = torch.DoubleTensor(self.weights)
 
     def __iter__(self):
-        return iter(torch.multinomial(self.weights, self.num_pesudo + self.num_sample, True))
+        return iter(torch.multinomial(self.weights, self.num_sample, True))
 
     def __len__(self):
         return self.num_sample
