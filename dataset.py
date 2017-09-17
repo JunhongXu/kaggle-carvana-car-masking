@@ -395,7 +395,7 @@ def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_s
                                             out_h=out_h, out_w=out_w))
 
 
-def get_cls_train_dataloader(in_h=512, in_w=512, batch_size=16, num_workers=6):
+def get_cls_train_dataloader(in_h=256, in_w=256, batch_size=128, num_workers=6):
     return DataLoader(
         batch_size=batch_size, num_workers=num_workers,
         dataset=CarClassificationDataset(CARANA_DIR+'/split/train-class', h=in_h, w=in_w,
@@ -406,7 +406,7 @@ def get_cls_train_dataloader(in_h=512, in_w=512, batch_size=16, num_workers=6):
     )
 
 
-def get_cls_valid_dataloader(in_h=512, in_w=512, batch_size=16, num_workers=6):
+def get_cls_valid_dataloader(in_h=256, in_w=256, batch_size=128, num_workers=6):
     return DataLoader(
         batch_size=batch_size, num_workers=num_workers,
         dataset=CarClassificationDataset(CARANA_DIR+'/split/valid-class', h=in_h, w=in_w,

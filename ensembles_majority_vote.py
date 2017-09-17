@@ -10,13 +10,14 @@ import pandas as pd
 from util import run_length_encode
 
 ensembles = [
+                'refinenetv4_resnet34_1280*1920_hq_upsample_preds'
                 'refinenetv4_resnet34_1280*1920_hq',
                 'refinenetv4_resnet34_1280*1280_hq',    # 0.9967
                 'refinenetv4_resnet34_1024*1024_hq',    # 0.9966
                 'refinenetv4_1024_hq',                  # 0.9965
                 'refinenetv3_resnet50_1024*1024_hq'     # 0.9965
             ]
-NAME = 'ensemble-2'
+NAME = 'ensemble-2.5'
 H, W = 1280, 1918
 interval = 1000
 TOTAL_TEST = 100064

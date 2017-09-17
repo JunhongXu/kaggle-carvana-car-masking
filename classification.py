@@ -13,7 +13,7 @@ import glob
 
 
 MODEL_NAME = 'resnet34_car'
-START_EPOCH = 0
+START_EPOCH = 8
 END_EPOCH = 40
 
 
@@ -23,9 +23,9 @@ def lr_adjuster(optimizer, e):
     elif 10 <= e < 20:
         lr = 0.005
     elif 20 <= e < 30:
-        lr = 0.001
-    else:
         lr = 0.0005
+    else:
+        lr = 0.0001
 
     for param in optimizer.param_groups:
         param['lr'] = lr
@@ -55,7 +55,7 @@ def evaluate(net, dataloader, criterion):
     for idx, (img, gt) in enumerate(dataloader):
         batch_size = img.size(0)
         img = Variable(img.cuda(), volatile=True)
-        gt = Variable(gt.cuda(), volatile=True)
+        gt = Variable(gt.long().cuda(), volatile=True)
         scores = net(img)
         loss = criterion(scores, gt)
         avg_loss += loss.data[0]
@@ -72,7 +72,7 @@ def evaluate(net, dataloader, criterion):
 
 def pretrained_resnet34(num_classes=len(label2idx)):
     model = resnet34(False, num_classes=num_classes)
-    model_dict = model.load_state_dict()
+    model_dict = model.state_dict()
     pretrained_dict = model_zoo.load_url(model_urls['resnet34'])
     model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
     model.load_state_dict(model_dict)
@@ -90,25 +90,27 @@ def train():
     logger.write('-----------------------Network config-------------------\n')
     logger.write(str(net)+'\n')
     total_num = len(train_loader.dataset)
-    tic = time.time()
 
-    moving_loss = 0.0
     best_val_loss = np.inf
 
     logger.write('EPOCH || CLS loss || Avg CLS loss || Train Acc || Val loss || Val Acc || Time\n')
+    if START_EPOCH > 0:
+        net.load_state_dict(torch.load('models/resnet34_car.pth'))
     for e in range(START_EPOCH, END_EPOCH):
+        tic = time.time()
         net.train()
         lr_adjuster(optimizer, e)
         num = 0
+        moving_loss = 0.0
         for idx, (imgs, labels) in enumerate(train_loader):
             batch_size = labels.size(0)
             num += batch_size
             imgs = Variable(imgs.cuda())
-            labels = Variable(labels.float().cuda())
-
-            preds = net(imgs)
-            loss = criterion(preds)
+            labels = Variable(labels.long().cuda())
             optimizer.zero_grad()
+            preds = net(imgs)
+            loss = criterion(preds, labels)
+            loss.backward()
             optimizer.step()
 
             moving_loss += loss.data[0]
@@ -128,7 +130,7 @@ def train():
 
             tac = time.time()
             print('\r %s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f'
-                  % (e, loss.data[0], moving_loss, train_acc, eval_loss, eval_acc, (tac - tic) / 60),
+                  % (e, loss.data[0], moving_loss/(idx+1), train_acc, eval_loss, eval_acc, (tac - tic) / 60),
                   flush=True, end='')
             print('\n')
             logger.write('%s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f\n'
