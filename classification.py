@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from torchvision.models.resnet import resnet34, resnet50
+from torchvision.models.resnet import resnet34, resnet50, model_zoo, model_urls
 from cls_labels import idx2label, label2idx
 from torch.optim import SGD
 from dataset import CARANA_DIR, get_cls_train_dataloader, get_cls_valid_dataloader
@@ -70,9 +70,19 @@ def evaluate(net, dataloader, criterion):
     return pred_labels, avg_loss/(idx+1), avg_acc/(idx+1)
 
 
+def pretrained_resnet34(num_classes=len(label2idx)):
+    model = resnet34(False, num_classes=num_classes)
+    model_dict = model.load_state_dict()
+    pretrained_dict = model_zoo.load_url(model_urls['resnet34'])
+    model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
+    model.load_state_dict(model_dict)
+    return model
+
+
 def train():
     train_loader, valid_loader = get_cls_train_dataloader(), get_cls_valid_dataloader()
-    net = resnet34(pretrained=True, num_classes=len(label2idx))
+    # net = resnet34(pretrained=True, num_classes=len(label2idx))
+    net = pretrained_resnet34()
     net = nn.DataParallel(net).cuda()
     criterion = nn.CrossEntropyLoss()
     optimizer = SGD(net.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0005)
