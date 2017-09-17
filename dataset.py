@@ -1,6 +1,6 @@
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
-from torchvision.transforms import Compose, Normalize, Lambda,  RandomSizedCrop, ToTensor
+from torchvision.transforms import Compose, Normalize, Lambda,  RandomSizedCrop, ToTensor, RandomHorizontalFlip
 import glob
 import numpy as np
 from PIL import Image
@@ -39,21 +39,22 @@ std = [
 class CarClassificationDataset(Dataset):
     def __init__(self, split, h, w, transform):
         super(CarClassificationDataset, self).__init__()
-        label_df = pd.read_csv(CARANA_DIR+'/model_label.csv')
+        label_df = pd.read_csv(CARANA_DIR+'/model_labels.csv')
         self.labels = []
         self.img_names = []
         self.h, self.w = h, w
         self.transform = transform
         with open(split) as f:
-            content = f.readline()
-        img_names = [line for line in content.split('\n')]
-        for img_name in img_names:
-            id = img_name.split('/')[-1][:-4]
+            content = f.readlines()
+        img_names = [line.strip('\n') for line in content]
+        for idx, img_name in enumerate(img_names):
+            print('\r[!]Checking %.2f' % (idx/len(img_names)), flush=True, end='')
+            id = img_name.split('/')[-1][:-7]
             label = label_df.loc[label_df['id'] == id]
             # this image has a model
             if len(label) != 0:
                 self.img_names.append(img_name)
-                self.labels.append(label2idx[label.get_value(0, 'model')])
+                self.labels.append(label2idx[label.get_values()[-1][-1]])
 
     def __getitem__(self, index):
         img = cv2.resize(cv2.imread(self.img_names[index]), (self.w, self.h))
@@ -399,7 +400,7 @@ def get_cls_train_dataloader(in_h=512, in_w=512, batch_size=16, num_workers=6):
         batch_size=batch_size, num_workers=num_workers,
         dataset=CarClassificationDataset(CARANA_DIR+'/split/train-class', h=in_h, w=in_w,
                                          transform=Compose([
-                                             RandomSizedCrop((in_h, in_w)),
+                                             RandomHorizontalFlip(),
                                              ToTensor()
                                          ]))
     )
@@ -438,7 +439,7 @@ if __name__ == '__main__':
     loader = get_cls_train_dataloader()
     for imgs, labels, in loader:
         for img, label in zip(imgs, labels):
-            img, label = img.cpu().numpy(), label.cpu().numpy()
+            img = img.cpu().numpy()
             img = img.transpose(1, 2, 0)
             # mask = np.ma.masked_where(mask == 0, mask)
             plt.imshow(img)

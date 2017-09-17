@@ -37,7 +37,7 @@ def pred(dataloader, net, upsample=None, verbose=False):
             logits = upsample(logits)
             scores = upsample(scores)
         # print(_logits)
-        logits = F.upsample(logits, (1280, 1918))
+        logits = F.upsample(logits, (1280, 1918), mode='bilinear')
         logits = logits.data.cpu().numpy()
         scores = scores.data.cpu().numpy()
         l = logits > 0.5

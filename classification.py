@@ -12,11 +12,11 @@ def train_valid_split(num_valid=10000):
     random.shuffle(images)
     train_img_names = images[:len(images) - num_valid]
     valid_img_names = images[len(images) - num_valid:]
-    with open(CARANA_DIR+'/split/train-class') as f:
+    with open(CARANA_DIR+'/split/train-class', 'w') as f:
         for name in train_img_names:
             f.write(name+'\n')
 
-    with open(CARANA_DIR+'/split/valid-class') as f:
+    with open(CARANA_DIR+'/split/valid-class', 'w') as f:
         for name in valid_img_names:
             f.write(name+'\n')
 
