@@ -1,6 +1,6 @@
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
-from torchvision.transforms import Compose, Normalize, Lambda
+from torchvision.transforms import Compose, Normalize, Lambda,  RandomSizedCrop, ToTensor
 import glob
 import numpy as np
 from PIL import Image
@@ -10,6 +10,8 @@ import random
 import time
 import math
 from matplotlib import pyplot as plt
+import pandas as pd
+from cls_labels import label2idx, idx2label
 
 random.seed(0)
 
@@ -36,13 +38,35 @@ std = [
 
 class CarClassificationDataset(Dataset):
     def __init__(self, split, h, w, transform):
-        pass
+        super(CarClassificationDataset, self).__init__()
+        label_df = pd.read_csv(CARANA_DIR+'/model_label.csv')
+        self.labels = []
+        self.img_names = []
+        self.h, self.w = h, w
+        self.transform = transform
+        with open(split) as f:
+            content = f.readline()
+        img_names = [line for line in content.split('\n')]
+        for img_name in img_names:
+            id = img_name.split('/')[-1][:-4]
+            label = label_df.loc[label_df['id'] == id]
+            # this image has a model
+            if len(label) != 0:
+                self.img_names.append(img_name)
+                self.labels.append(label2idx[label.get_value(0, 'model')])
 
     def __getitem__(self, index):
-        pass
+        img = cv2.resize(cv2.imread(self.img_names[index]), (self.w, self.h))
+        img = Image.fromarray(img)
+        label = self.labels[index]
+        if self.transform is not None:
+            img = self.transform(img)
+        # img = img / 255.
+        # img = toTensor(img)
+        return img, label
 
     def __len__(self):
-        pass
+        return len(self.img_names)
 
 
 class PesudoLabelCarvanaDataSet(Dataset):
@@ -77,7 +101,6 @@ class PesudoLabelCarvanaDataSet(Dataset):
     def __getitem__(self, index):
         img = cv2.imread(self.img_names[index])
         mask = np.array(Image.open(self.mask_names[index]))
-
         if self.transform is not None:
             img, mask = self.transform((img, mask))
 
@@ -371,6 +394,18 @@ def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_s
                                             out_h=out_h, out_w=out_w))
 
 
+def get_cls_train_dataloader(in_h=512, in_w=512, batch_size=16, num_workers=6):
+    return DataLoader(
+        batch_size=batch_size, num_workers=num_workers,
+        dataset=CarClassificationDataset(CARANA_DIR+'/split/train-class', h=in_h, w=in_w,
+                                         transform=Compose([
+                                             RandomSizedCrop((in_h, in_w)),
+                                             ToTensor()
+                                         ]))
+    )
+
+
+
 class PesudoSampler(Sampler):
     def __init__(self, data_source):
         super(PesudoSampler, self).__init__(None)
@@ -400,14 +435,12 @@ if __name__ == '__main__':
     #     num_pesudo += np.sum((idx >= 4788).astype(int))
     #     print(idx)
     # print(num_pesudo/num_sample)
-    pesudo_loader = get_pesudo_train_dataloader(1024, 1024, 1024, 1024, 4)
-    print(pesudo_loader)
-    for imgs, masks, names in pesudo_loader:
-        for img, mask, name in zip(imgs, masks, names):
-            img, mask = img.cpu().numpy(), mask.cpu().numpy()
+    loader = get_cls_train_dataloader()
+    for imgs, labels, in loader:
+        for img, label in zip(imgs, labels):
+            img, label = img.cpu().numpy(), label.cpu().numpy()
             img = img.transpose(1, 2, 0)
-            mask = np.ma.masked_where(mask == 0, mask)
+            # mask = np.ma.masked_where(mask == 0, mask)
             plt.imshow(img)
-            plt.imshow(mask, 'jet', alpha=0.7)
-            print(name)
+            print(label)
             plt.show()
