@@ -442,5 +442,5 @@ if __name__ == '__main__':
             img = img.transpose(1, 2, 0)
             # mask = np.ma.masked_where(mask == 0, mask)
             plt.imshow(img)
-            print(label)
+            print(idx2label[label])
             plt.show()

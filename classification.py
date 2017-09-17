@@ -19,3 +19,7 @@ def train_valid_split(num_valid=10000):
     with open(CARANA_DIR+'/split/valid-class') as f:
         for name in valid_img_names:
             f.write(name+'\n')
+
+
+if __name__ == '__main__':
+    train_valid_split()
