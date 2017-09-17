@@ -173,7 +173,7 @@ def load_pretrained_refinenet():
 
 
 def train_seg():
-    train_loader, valid_loader = get_train_dataloader(batch_size=BATCH_SIZE, split='train-4088', mean=None, std=None, H=in_h, W=in_w,
+    train_loader, valid_loader = get_train_dataloader(batch_size=BATCH_SIZE, split='train-4788', mean=None, std=None, H=in_h, W=in_w,
                                                       out_h=out_h, out_w=out_w), \
                                  get_valid_dataloader(batch_size=EVAL_BATCH_SIZE, H=in_h, W=in_w, out_h=out_h, out_w=out_w, split='valid-300')
 
