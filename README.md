@@ -15,6 +15,8 @@ Kaggle Competition, hope I can win this one!
                 'refinenetv4_1024_hq',                  # 0.9965
                 'refinenetv3_resnet50_1024*1024_hq'     # 0.9965
             ]
+  
+9.17: Pesudo labeling not performing so well.
 
 -----------
 
@@ -28,4 +30,4 @@ TODO:
 
 1. Try more ensembles and look into difference between these single models.
 2. Pre-training using classification combined on test and train datasets.
-3. Pseudo-labeling the test dataset.
+3. Up-sample predictions, not mask.

@@ -133,9 +133,8 @@ def train():
     train_loader = get_pesudo_train_dataloader(in_h, in_w, train_out_h, train_out_w, 2)
     # train_loader = get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=16, num_works=6,
     #                                                           out_h=train_out_h, out_w=train_out_w, mean=None, std=None)
-    valid_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=train_out_h,
-                                                              preload=False, num_works=2,
-                                                              out_w=train_out_w, mean=None, std=None)
+    valid_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w,
+                                                              preload=False, num_works=2, mean=None, std=None)
 
     net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
     # net.load_params('resnet34')

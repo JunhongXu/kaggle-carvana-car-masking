@@ -34,6 +34,17 @@ std = [
 ]
 
 
+class CarClassificationDataset(Dataset):
+    def __init__(self, split, h, w, transform):
+        pass
+
+    def __getitem__(self, index):
+        pass
+
+    def __len__(self):
+        pass
+
+
 class PesudoLabelCarvanaDataSet(Dataset):
     """This is just for the training set"""
     def __init__(self, split='train_pesudo', H=1024, W=1024, out_h=1024, out_w=1024, transform=None):

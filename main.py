@@ -45,7 +45,7 @@ scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 20:
         lr = 0.001
-    elif 10 < epoch<= 30:
+    elif 10 < epoch <= 30:
         lr = 0.0005
     elif 30 < epoch <= 50:
         lr = 0.0001
@@ -218,12 +218,12 @@ def test(net):
         names = test_loader.dataset.img_names
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
-        save_mask(mask_imgs=pred_labels, model_name=model_name, names=names)
+        save_mask(mask_imgs=pred_labels, model_name=model_name+'_upsample_preds', names=names)
         del pred_labels
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'/*.png')
+    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'_upsample_preds'+'/*.png')
     names = []
     rle = []
     for index, test_name in enumerate(mask_names):
@@ -257,7 +257,7 @@ if __name__ == '__main__':
         cv2.imshow('orig', img.reshape(1024, 1024, 3))
         cv2.waitKey()
     if is_training:
-        valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w, out_h=out_h,
+        valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w,
                                                               preload=False, num_works=2,
                                                               out_w=out_w, mean=None, std=None), \
                                          get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,

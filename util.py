@@ -21,10 +21,11 @@ def calculate_weight(label):
     weights = weights/w1*w0
     return weights
 
+
 def pred(dataloader, net, upsample=None, verbose=False):
     net.eval()
     total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
-    pred_labels = np.empty((total_size, H, W), dtype=np.uint8)
+    pred_labels = np.empty((total_size, 1280, 1918), dtype=np.uint8)
     # predictions = np.empty((total_size, H, W))
     prev = 0
     for idx, (img, _) in enumerate(dataloader):
@@ -36,6 +37,7 @@ def pred(dataloader, net, upsample=None, verbose=False):
             logits = upsample(logits)
             scores = upsample(scores)
         # print(_logits)
+        logits = F.upsample(logits, (1280, 1918))
         logits = logits.data.cpu().numpy()
         scores = scores.data.cpu().numpy()
         l = logits > 0.5
