@@ -406,6 +406,15 @@ def get_cls_train_dataloader(in_h=512, in_w=512, batch_size=16, num_workers=6):
     )
 
 
+def get_cls_valid_dataloader(in_h=512, in_w=512, batch_size=16, num_workers=6):
+    return DataLoader(
+        batch_size=batch_size, num_workers=num_workers,
+        dataset=CarClassificationDataset(CARANA_DIR+'/split/valid-class', h=in_h, w=in_w,
+                                         transform=Compose([
+                                             ToTensor()
+                                         ]))
+    )
+
 
 class PesudoSampler(Sampler):
     def __init__(self, data_source):
@@ -436,7 +445,7 @@ if __name__ == '__main__':
     #     num_pesudo += np.sum((idx >= 4788).astype(int))
     #     print(idx)
     # print(num_pesudo/num_sample)
-    loader = get_cls_train_dataloader()
+    loader = get_cls_valid_dataloader()
     for imgs, labels, in loader:
         for img, label in zip(imgs, labels):
             img = img.cpu().numpy()

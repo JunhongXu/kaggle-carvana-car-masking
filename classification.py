@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from dataset import CARANA_DIR
+from dataset import CARANA_DIR, get_cls_train_dataloader, get_cls_valid_dataloader
 import numpy as np
 import random
 import glob
@@ -21,5 +21,8 @@ def train_valid_split(num_valid=10000):
             f.write(name+'\n')
 
 
+def train():
+
+
 if __name__ == '__main__':
-    train_valid_split()
+    # train_valid_split()
