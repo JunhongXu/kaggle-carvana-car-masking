@@ -2,14 +2,17 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torchvision.models.resnet import Bottleneck, BasicBlock
-from torchvision.models.resnet import model_urls, model_zoo
-from torchvision.models.densenet import _DenseBlock, _Transition
+from torchvision.models.resnet import model_urls as resnet_urls
+from torchvision.models.resnet import model_zoo as resnet_zoo
+from torchvision.models.vgg import cfg, make_layers
+from torch.autograd import Variable
+from torchvision.models.vgg import model_urls as vgg_urls
+from torchvision.models.vgg import model_zoo as vgg_zoo
 
 
-def make_conv_bn_relu(input_feat, output_feat, kernel_size=3, padding=1):
-
-    layer = (nn.Conv2d(input_feat, output_feat, kernel_size=kernel_size, stride=1, padding=padding, bias=False),
-             nn.BatchNorm2d(output_feat), nn.ReLU())
+def make_conv_bn_relu(input_feat, output_feat, kernel_size=3, padding=1, inplace=False, use_bias=False):
+    layer = (nn.Conv2d(input_feat, output_feat, kernel_size=kernel_size, stride=1, padding=padding, bias=use_bias),
+             nn.BatchNorm2d(output_feat), nn.ReLU(inplace=inplace))
 
     return layer
 
@@ -30,6 +33,103 @@ class RCU(nn.Module):
         x = self.transition(x)
         out += x
         return F.relu(out)
+
+
+class RefineNetV5_1024(nn.Module):
+    """VGG16-BN with auxiliary loss on each decoder stage"""
+    def __init__(self):
+        super(RefineNetV5_1024, self).__init__()
+        self.layer1_1 = nn.Sequential(*make_conv_bn_relu(3, 64, inplace=True, use_bias=True))
+        self.layer1_2 = nn.Sequential(*make_conv_bn_relu(64, 64, inplace=True, use_bias=True))
+
+        self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)   # 64*512
+
+        self.layer2_1 = nn.Sequential(*make_conv_bn_relu(64, 128, inplace=True, use_bias=True))
+        self.layer2_2 = nn.Sequential(*make_conv_bn_relu(128, 128, inplace=True, use_bias=True))
+
+        self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)   # 128*256
+
+        self.layer3_1 = nn.Sequential(*make_conv_bn_relu(128, 256, inplace=True, use_bias=True))
+        self.layer3_2 = nn.Sequential(*make_conv_bn_relu(256, 256, inplace=True, use_bias=True))
+        self.layer3_3 = nn.Sequential(*make_conv_bn_relu(256, 256, inplace=True, use_bias=True))
+
+        self.maxpool3 = nn.MaxPool2d(2, 2)                     # 256*128
+
+        self.layer4_1 = nn.Sequential(*make_conv_bn_relu(256, 512, inplace=True, use_bias=True))
+        self.layer4_2 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+        self.layer4_3 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+
+        self.maxpool4 = nn.MaxPool2d(2, 2)                     # 512*64
+
+        self.layer5_1 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+        self.layer5_2 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+        self.layer5_3 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+
+        self.maxpool5 = nn.MaxPool2d(2, 2)                     # 512*32
+
+        self.middle = nn.Sequential(*make_conv_bn_relu(512, 1024, inplace=True, use_bias=False), nn.MaxPool2d(2, 2)) # 16
+
+        self.up_1 = RCU(1024, 512)                             # 512
+        self.trans1 = RCU(512, 512)
+        self.up_2 = RCU(1024, 256)                             # 256
+        self.trans2 = RCU(512, 512)
+        self.up_3 = RCU(768, 128)                              # 128
+        self.trans3 = RCU(256, 256)
+        self.up_4 = RCU(384, 64)                               # 64
+        self.trans4 = RCU(128, 128)
+        self.up_5 = RCU(192, 32)   # 32
+        self.trans5 = RCU(64, 64)
+        self.final = nn.Sequential(
+            *make_conv_bn_relu(96, 16),
+            nn.Conv2d(16, 1, kernel_size=3, padding=1)
+        )
+
+    def forward(self, x):
+        x1 = self.maxpool1(self.layer1_2(self.layer1_1(x)))
+        x2 = self.maxpool2(self.layer2_2(self.layer2_1(x1)))
+        x3 = self.maxpool3(self.layer3_3(self.layer3_2(self.layer3_1(x2))))
+        x4 = self.maxpool4(self.layer4_3(self.layer4_2(self.layer4_1(x3))))
+        x5 = self.maxpool5(self.layer5_3(self.layer5_2(self.layer5_1(x4))))
+
+        middle = self.middle(x5)
+
+        out = self.up_1(middle) # 512
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        x5 = self.trans1(x5)    # 512
+        out = torch.cat((out, x5), 1)
+
+        out = self.up_2(out)    # 256
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        x4 = self.trans2(x4)    # 512
+        out = torch.cat((out, x4), 1)
+
+        out = self.up_3(out)    # 128
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        x3 = self.trans3(x3)   # 256
+        out = torch.cat((out, x3), 1)
+
+        out = self.up_4(out)    # 64
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        x2 = self.trans4(x2)    # 128
+        out = torch.cat((out, x2), 1)
+
+        out = self.up_5(out)    # 32
+        out = F.upsample(out, scale_factor=2, mode='bilinear')
+        x1 = self.trans5(x1)    # 64
+        out = torch.cat((out, x1), 1)
+
+        scores = self.final(out)
+        return scores, F.sigmoid(scores)
+
+    def load_vgg16(self):
+        model_dict = self.state_dict()
+        pretrain_dict = vgg_zoo.load_url(vgg_urls['vgg16_bn'])
+
+        model_dict.update(
+            {key: pretrain_dict[pretrain_key] for key, pretrain_key in zip(model_dict.keys(), pretrain_dict.keys()) if
+             'classifier' not in pretrain_key})
+
+        self.load_state_dict(model_dict)
 
 
 class RefineNetV4_1024(nn.Module):
@@ -93,7 +193,7 @@ class RefineNetV4_1024(nn.Module):
         return nn.Sequential(*layers)
 
     def load_params(self, resnet='resnet50'):
-        pretrained_dict = model_zoo.load_url(model_urls[resnet])
+        pretrained_dict = resnet_zoo.load_url(resnet_urls[resnet])
         model_dict = self.state_dict()
         model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
         self.load_state_dict(model_dict)
@@ -207,7 +307,7 @@ class RefineNetV3_1024(nn.Module):
         return nn.Sequential(*layers)
 
     def load_params(self, resnet='resnet50'):
-        pretrained_dict = model_zoo.load_url(model_urls[resnet])
+        pretrained_dict = resnet_zoo.load_url(resnet_urls[resnet])
         model_dict = self.state_dict()
         model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
         self.load_state_dict(model_dict)
@@ -310,7 +410,7 @@ class RefineNetV2_1024(nn.Module):
         return nn.Sequential(*layers)
 
     def load_params(self, resnet='resnet50'):
-        pretrained_dict = model_zoo.load_url(model_urls[resnet])
+        pretrained_dict = resnet_zoo.load_url(resnet_urls[resnet])
         model_dict = self.state_dict()
         model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
         self.load_state_dict(model_dict)
@@ -412,7 +512,7 @@ class RefineNetV1_1024(nn.Module):
         return nn.Sequential(*layers)
 
     def load_params(self):
-        pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
+        pretrained_dict = resnet_zoo.load_url(resnet_urls['resnet50'])
         model_dict = self.state_dict()
         model_dict.update({key: pretrained_dict[key] for key in pretrained_dict.keys() if 'fc' not in key})
         self.load_state_dict(model_dict)
@@ -451,12 +551,33 @@ class RefineNetV1_1024(nn.Module):
         return out, F.sigmoid(out)
 
 if __name__ == '__main__':
-    from torch.autograd import Variable
-    a = Variable(torch.randn((6, 3, 1024, 1024))).cuda()
-    resnet = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3]).cuda()
-    resnet.load_params('resnet34')
-    resnet = nn.DataParallel(resnet)
-    # resnet.cuda()
+    # from torch.autograd import Variable
+    # a = Variable(torch.randn((6, 3, 1024, 1024))).cuda()
+    # resnet = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3]).cuda()
+    # resnet.load_params('resnet34')
+    # resnet = nn.DataParallel(resnet)
+    # # resnet.cuda()
+    # # print(resnet(a))
     # print(resnet(a))
-    print(resnet(a))
-    print(resnet)
+    # print(resnet)
+    # features = make_layers(cfg=cfg['D'], batch_norm=True).modules()
+    # for f in features:
+    #     print(f)
+    a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
+    net = RefineNetV5_1024()
+    net.load_vgg16()
+    net = nn.DataParallel(net).cuda()
+    print(net(a))
+
+    # model_dict = net.state_dict()
+    # for key in net.state_dict().keys():
+    #     print(key)
+    #
+    # pretrain_dict = vgg_zoo.load_url(vgg_urls['vgg16_bn'])
+    # for key in vgg_zoo.load_url(vgg_urls['vgg16_bn']).keys():
+    #     print(key)
+    #
+    # model_dict.update({key: pretrain_dict[pretrain_key] for key, pretrain_key in zip(model_dict.keys(), pretrain_dict.keys()) if 'classifier' not in pretrain_key})
+    #
+    # for net_key, pre_key in zip(model_dict.keys(), pretrain_dict.keys()):
+    #     print(net_key, pre_key, torch.equal(model_dict[net_key], pretrain_dict[pre_key]))
