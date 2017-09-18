@@ -17,6 +17,7 @@ Kaggle Competition, hope I can win this one!
             ]
   
 9.17: Pesudo labeling not performing so well.
+9.18: Pre-trained classification not performing well.
 
 -----------
 

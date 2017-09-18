@@ -1,18 +1,17 @@
+import glob
+
+import cv2
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from torch.optim import Adam, SGD
-import glob
+from torch.optim import SGD
+
 from dataset import get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR, mean, std
-from unet import UNet512, UNetV2, UNetV3
+from myunet import BCELoss2d
 from myunet import UNet_double_1024_5
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask
-from myunet import BCELoss2d
-import cv2
-from scipy.misc import imread
-import pandas as pd
-import numpy as np
-
 
 EPOCH = 60
 LEARNING_RATE = 5e-4
@@ -125,7 +124,7 @@ def test():
 
 
 def do_submisssion():
-    from scipy.misc import imread, imshow
+    from scipy.misc import imread
     mask_names = []
     for i in range(0, 5):
         mask_name = glob.glob(CARANA_DIR+'/unet_1024_{}/*.png'.format(i))

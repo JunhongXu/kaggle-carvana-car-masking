@@ -30,22 +30,14 @@ def pred(dataloader, net, upsample=True, verbose=False):
     prev = 0
     for idx, (img, _) in enumerate(dataloader):
         batch_size = img.size(0)
-        # print(img.numpy())
         img = Variable(img.cuda(), volatile=True)
         scores, logits = net(img)
-        # if upsample is not None:
-        #    logits = upsample(logits)
-        #    scores = upsample(scores)
-        # print(_logits)
         if upsample:
             logits = F.upsample(logits, (1280, 1918), mode='bilinear')
         logits = logits.data.cpu().numpy()
-        # scores = scores.data.cpu().numpy()
         l = logits > 0.5
         l = np.squeeze(l)
-        # scores = np.squeeze(scores)
         pred_labels[prev: prev+batch_size] = l
-        # predictions[prev: prev+batch_size] = scores
         prev = prev + batch_size
         if verbose:
             print('\r Progress: %.2f' % (prev/total_size), flush=True, end='')
