@@ -39,11 +39,11 @@ class GateUnit(nn.Module):
     def __init__(self, in_feat, out_feat):
         """First is a smaller feature and second is a larger feature"""
         super(GateUnit, self).__init__()
-        self.conv1 = nn.Conv2d(in_feat, in_feat, kernel_size=3, padding=1, stride=1, bias=False)
+        self.conv1 = nn.Conv2d(out_feat, in_feat, kernel_size=3, padding=1, stride=1, bias=False)
         self.bn1 = nn.BatchNorm2d(in_feat)
         self.relu1 = nn.ReLU(inplace=True)
 
-        self.conv2 = nn.Conv2d(out_feat, in_feat, kernel_size=3, padding=1, stride=1, bias=False)
+        self.conv2 = nn.Conv2d(in_feat, in_feat, kernel_size=3, padding=1, stride=1, bias=False)
         self.bn2 = nn.BatchNorm2d(in_feat)
         self.relu2 = nn.ReLU(inplace=True)
 
@@ -53,7 +53,6 @@ class GateUnit(nn.Module):
         """x1 is smaller feature map"""
         x1 = self.relu1(self.bn1(self.conv1(x1)))
         x1 = self.upsample(x1)
-
         x2 = self.relu2(self.bn2(self.conv2(x2)))
         return torch.mul(x1, x2)
 
@@ -116,19 +115,19 @@ class RefineNetV6(nn.Module):
         self.gate2 = GateUnit(512, 512)
         self.map3 = GatedRefinementUnit(512)
 
-        self.gate3 = GateUnit(512, 256)
+        self.gate3 = GateUnit(256, 512)
         self.map4 = GatedRefinementUnit(256)
 
-        self.gate4 = GateUnit(256, 128)
+        self.gate4 = GateUnit(128, 256)
         self.map5 = GatedRefinementUnit(128)
 
-        self.gate5 = GateUnit(128, 64)
+        self.gate5 = GateUnit(64, 128)
         self.map6 = GatedRefinementUnit(64)
 
         self.map7 = nn.Sequential(
             *make_conv_bn_relu(1, 64),
             nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.Conv2d(63, 1, 3, stride=1, padding=1)
+            nn.Conv2d(64, 1, 3, stride=1, padding=1)
         )
 
     def forward(self, x):
@@ -138,16 +137,25 @@ class RefineNetV6(nn.Module):
         x4 = self.maxpool4(self.layer4_3(self.layer4_2(self.layer4_1(x3))))
         x5 = self.maxpool5(self.layer5_3(self.layer5_2(self.layer5_1(x4))))
         x6 = self.layer6(x5)
+        print('x1', x1.size())
+        print('x2', x2.size())
+        print('x3', x3.size())
+        print('x4', x4.size())
+        print('x5', x5.size())
+        print('x6', x6.size())
 
         middle = self.middle(x6)
+        print('middle', middle.size())
 
         map1 = self.map1(middle)
         gate1 = self.gate1(x6, x5)
         map2 =self.map2(map1, gate1)
 
+        print(gate1.size())
+
         gate2 = self.gate2(gate1, x4)
         map3 = self.map3(map2, gate2)
-
+        print(x3.size(), gate2.size())
         gate3 = self.gate3(gate2, x3)
         map4 = self.map4(map3, gate3)
 
@@ -690,10 +698,11 @@ if __name__ == '__main__':
     # features = make_layers(cfg=cfg['D'], batch_norm=True).modules()
     # for f in features:
     #     print(f)
-    a = Variable(torch.randn((4, 3, 1024, 1024))).cuda()
-    net = RefineNetV5_1024()
-    net.load_vgg16()
-    net = nn.DataParallel(net).cuda()
+    a = Variable(torch.randn((1, 3, 512, 512)))
+    net = RefineNetV6()
+    print(net)
+    # net.load_vgg16()
+    # net = nn.DataParallel(net).cuda()
     print(net(a))
 
     # model_dict = net.state_dict()
