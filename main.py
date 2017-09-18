@@ -258,8 +258,8 @@ if __name__ == '__main__':
         cv2.waitKey()
     if is_training:
         valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w,
-                                                              preload=False, num_works=2,
-                                                              out_w=out_w, mean=None, std=None), \
+                                                          out_h=out_h, out_w=out_w,
+                                                          preload=False, num_works=2, mean=None, std=None), \
                                          get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
                                                               out_h=out_h, out_w=out_w, mean=None, std=None)
         train(net)
