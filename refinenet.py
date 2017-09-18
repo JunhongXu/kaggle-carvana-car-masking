@@ -35,8 +35,134 @@ class RCU(nn.Module):
         return F.relu(out)
 
 
+class GateUnit(nn.Module):
+    def __init__(self, in_feat, out_feat):
+        """First is a smaller feature and second is a larger feature"""
+        super(GateUnit, self).__init__()
+        self.conv1 = nn.Conv2d(in_feat, in_feat, kernel_size=3, padding=1, stride=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(in_feat)
+        self.relu1 = nn.ReLU(inplace=True)
+
+        self.conv2 = nn.Conv2d(out_feat, in_feat, kernel_size=3, padding=1, stride=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(in_feat)
+        self.relu2 = nn.ReLU(inplace=True)
+
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear')
+
+    def forward(self, x1, x2):
+        """x1 is smaller feature map"""
+        x1 = self.relu1(self.bn1(self.conv1(x1)))
+        x1 = self.upsample(x1)
+
+        x2 = self.relu2(self.bn2(self.conv2(x2)))
+        return torch.mul(x1, x2)
+
+
+class GatedRefinementUnit(nn.Module):
+    def __init__(self, in_feat):
+        super(GatedRefinementUnit, self).__init__()
+        self.conv1 = nn.Sequential(*make_conv_bn_relu(in_feat, 1))
+        self.conv2 = nn.Sequential(*make_conv_bn_relu(2, 1))
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear')
+
+    def forward(self, map, x):
+        conv1 = self.conv1(x)
+        map = torch.cat((conv1, map), 1)
+        map = self.conv2(map)
+        map = self.upsample(map)
+        return map
+
+
+class RefineNetV6(nn.Module):
+    """VGG16-BN with gated info between two encoder layers with auxiliary loss """
+    def __init__(self):
+        super(RefineNetV6, self).__init__()
+        self.layer1_1 = nn.Sequential(*make_conv_bn_relu(3, 64, inplace=True, use_bias=True))
+        self.layer1_2 = nn.Sequential(*make_conv_bn_relu(64, 64, inplace=True, use_bias=True))
+
+        self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)   # 64*512
+
+        self.layer2_1 = nn.Sequential(*make_conv_bn_relu(64, 128, inplace=True, use_bias=True))
+        self.layer2_2 = nn.Sequential(*make_conv_bn_relu(128, 128, inplace=True, use_bias=True))
+
+        self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)   # 128*256
+
+        self.layer3_1 = nn.Sequential(*make_conv_bn_relu(128, 256, inplace=True, use_bias=True))
+        self.layer3_2 = nn.Sequential(*make_conv_bn_relu(256, 256, inplace=True, use_bias=True))
+        self.layer3_3 = nn.Sequential(*make_conv_bn_relu(256, 256, inplace=True, use_bias=True))
+
+        self.maxpool3 = nn.MaxPool2d(2, 2)                     # 256*128
+
+        self.layer4_1 = nn.Sequential(*make_conv_bn_relu(256, 512, inplace=True, use_bias=True))
+        self.layer4_2 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+        self.layer4_3 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+
+        self.maxpool4 = nn.MaxPool2d(2, 2)                     # 512*64
+
+        self.layer5_1 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+        self.layer5_2 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+        self.layer5_3 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=True))
+
+        self.maxpool5 = nn.MaxPool2d(2, 2)                     # 512*32
+
+        self.layer6 = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=False), nn.MaxPool2d(2, 2)) # 512*16
+
+        self.middle = nn.Sequential(*make_conv_bn_relu(512, 512, inplace=True, use_bias=False)) # 512*16
+
+        self.map1 = nn.Sequential(*make_conv_bn_relu(512, 1, inplace=True, use_bias=False), nn.Upsample(scale_factor=2, mode='bilinear'))
+        self.gate1 = GateUnit(512, 512)
+        self.map2 = GatedRefinementUnit(512)
+
+        self.gate2 = GateUnit(512, 512)
+        self.map3 = GatedRefinementUnit(512)
+
+        self.gate3 = GateUnit(512, 256)
+        self.map4 = GatedRefinementUnit(256)
+
+        self.gate4 = GateUnit(256, 128)
+        self.map5 = GatedRefinementUnit(128)
+
+        self.gate5 = GateUnit(128, 64)
+        self.map6 = GatedRefinementUnit(64)
+
+        self.map7 = nn.Sequential(
+            *make_conv_bn_relu(1, 64),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Conv2d(63, 1, 3, stride=1, padding=1)
+        )
+
+    def forward(self, x):
+        x1 = self.maxpool1(self.layer1_2(self.layer1_1(x)))
+        x2 = self.maxpool2(self.layer2_2(self.layer2_1(x1)))
+        x3 = self.maxpool3(self.layer3_3(self.layer3_2(self.layer3_1(x2))))
+        x4 = self.maxpool4(self.layer4_3(self.layer4_2(self.layer4_1(x3))))
+        x5 = self.maxpool5(self.layer5_3(self.layer5_2(self.layer5_1(x4))))
+        x6 = self.layer6(x5)
+
+        middle = self.middle(x6)
+
+        map1 = self.map1(middle)
+        gate1 = self.gate1(x6, x5)
+        map2 =self.map2(map1, gate1)
+
+        gate2 = self.gate2(gate1, x4)
+        map3 = self.map3(map2, gate2)
+
+        gate3 = self.gate3(gate2, x3)
+        map4 = self.map4(map3, gate3)
+
+        gate4 = self.gate4(gate3, x2)
+        map5 = self.map5(map4, gate4)
+
+        gate5 = self.gate5(gate4, x1)
+        map6 = self.map6(map5, gate5)
+
+        map7 = self.map7(map6)
+        return (map7, F.sigmoid(map7)), (map1, map2, map3, map4, map5, map6, map7)
+
+
 class RefineNetV5_1024(nn.Module):
-    """VGG16-BN with auxiliary loss on each decoder stage"""
+    """VGG16-BN on each decoder stage"""
     def __init__(self):
         super(RefineNetV5_1024, self).__init__()
         self.layer1_1 = nn.Sequential(*make_conv_bn_relu(3, 64, inplace=True, use_bias=True))
@@ -70,17 +196,18 @@ class RefineNetV5_1024(nn.Module):
         self.middle = nn.Sequential(*make_conv_bn_relu(512, 1024, inplace=True, use_bias=False), nn.MaxPool2d(2, 2)) # 16
 
         self.up_1 = RCU(1024, 512)                             # 512
-        self.trans1 = RCU(512, 512)
+        # self.trans1 = RCU(512, 512)
         self.up_2 = RCU(1024, 256)                             # 256
-        self.trans2 = RCU(512, 512)
+        # self.trans2 = RCU(512, 512)
         self.up_3 = RCU(768, 128)                              # 128
-        self.trans3 = RCU(256, 256)
+        # self.trans3 = RCU(256, 256)
         self.up_4 = RCU(384, 64)                               # 64
-        self.trans4 = RCU(128, 128)
+        # self.trans4 = RCU(128, 128)
         self.up_5 = RCU(192, 32)   # 32
-        self.trans5 = RCU(64, 64)
+        # self.trans5 = RCU(64, 64)
         self.final = nn.Sequential(
             *make_conv_bn_relu(96, 16),
+            nn.Upsample(mode='bilinear', scale_factor=2),
             nn.Conv2d(16, 1, kernel_size=3, padding=1)
         )
 
@@ -95,27 +222,27 @@ class RefineNetV5_1024(nn.Module):
 
         out = self.up_1(middle) # 512
         out = F.upsample(out, scale_factor=2, mode='bilinear')
-        x5 = self.trans1(x5)    # 512
+        # x5 = self.trans1(x5)    # 512
         out = torch.cat((out, x5), 1)
 
         out = self.up_2(out)    # 256
         out = F.upsample(out, scale_factor=2, mode='bilinear')
-        x4 = self.trans2(x4)    # 512
+        # x4 = self.trans2(x4)    # 512
         out = torch.cat((out, x4), 1)
 
         out = self.up_3(out)    # 128
         out = F.upsample(out, scale_factor=2, mode='bilinear')
-        x3 = self.trans3(x3)   # 256
+        # x3 = self.trans3(x3)   # 256
         out = torch.cat((out, x3), 1)
 
         out = self.up_4(out)    # 64
         out = F.upsample(out, scale_factor=2, mode='bilinear')
-        x2 = self.trans4(x2)    # 128
+        # x2 = self.trans4(x2)    # 128
         out = torch.cat((out, x2), 1)
 
         out = self.up_5(out)    # 32
         out = F.upsample(out, scale_factor=2, mode='bilinear')
-        x1 = self.trans5(x1)    # 64
+        # x1 = self.trans5(x1)    # 64
         out = torch.cat((out, x1), 1)
 
         scores = self.final(out)

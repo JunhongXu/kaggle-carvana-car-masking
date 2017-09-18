@@ -22,10 +22,10 @@ def calculate_weight(label):
     return weights
 
 
-def pred(dataloader, net, upsample=None, verbose=False):
+def pred(dataloader, net, upsample=True, verbose=False):
     net.eval()
     total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
-    pred_labels = np.empty((total_size, 1280, 1918), dtype=np.uint8)
+    pred_labels = np.empty((total_size, 1280, 1918), dtype=np.uint8) if upsample else np.empty((total_size, H, W))
     # predictions = np.empty((total_size, H, W))
     prev = 0
     for idx, (img, _) in enumerate(dataloader):
@@ -33,16 +33,17 @@ def pred(dataloader, net, upsample=None, verbose=False):
         # print(img.numpy())
         img = Variable(img.cuda(), volatile=True)
         scores, logits = net(img)
-        if upsample is not None:
-            logits = upsample(logits)
-            scores = upsample(scores)
+        # if upsample is not None:
+        #    logits = upsample(logits)
+        #    scores = upsample(scores)
         # print(_logits)
-        logits = F.upsample(logits, (1280, 1918), mode='bilinear')
+        if upsample:
+            logits = F.upsample(logits, (1280, 1918), mode='bilinear')
         logits = logits.data.cpu().numpy()
-        scores = scores.data.cpu().numpy()
+        # scores = scores.data.cpu().numpy()
         l = logits > 0.5
         l = np.squeeze(l)
-        scores = np.squeeze(scores)
+        # scores = np.squeeze(scores)
         pred_labels[prev: prev+batch_size] = l
         # predictions[prev: prev+batch_size] = scores
         prev = prev + batch_size

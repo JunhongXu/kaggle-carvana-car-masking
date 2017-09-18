@@ -9,7 +9,7 @@ from dataset import transform1, transform2, transform3, transform4,\
     mean, std
 from unet import UNet512, UNetV2, UNetV3
 from myunet import UNet_double_1024_5, UNet_1024_5, BCELoss2d, SoftIoULoss, SoftDiceLoss
-from refinenet import RefineNetV1_1024, RefineNetV2_1024, Bottleneck, BasicBlock, RefineNetV4_1024
+from refinenet import RefineNetV1_1024, RefineNetV2_1024, Bottleneck, BasicBlock, RefineNetV4_1024, RefineNetV5_1024
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 import cv2
 from scipy.misc import imread
@@ -23,18 +23,18 @@ from matplotlib import pyplot as plt
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
-EPOCH = 20
-START_EPOCH = 0
-in_h = 512
-in_w = 512
-out_w = 512
-out_h = 512
+EPOCH = 40
+START_EPOCH = 1
+in_h = 1024
+in_w = 1024
+out_w = 1024
+out_h = 1024
 print_it = 30
 interval = 20000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv4_resnet34_512*512hq'
-BATCH = 16
+model_name = 'refinenetv5_vgg_1024_hq'
+BATCH = 4
 EVAL_BATCH = 10
 DEBUG = False
 is_training = True
@@ -44,11 +44,11 @@ scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 20:
-        lr = 0.01
+        lr = 0.009
     elif 10 < epoch <= 30:
-        lr = 0.0005
+        lr = 0.005
     elif 30 < epoch <= 50:
-        lr = 0.0001
+        lr = 0.001
     else:
         lr = 0.0001
     for param in optimizer.param_groups:
@@ -56,7 +56,7 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
-    # net.load_state_dict(torch.load('models/refinenetv4_resnet34_1280*1280_hq.pth'))
+    # net.load_state_dict(torch.load('models/refinenetv5_vgg_512_hq.pth'))
     optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
     # softdice = SoftDiceLoss()
@@ -109,7 +109,7 @@ def train(net):
             if idx == 0:
                 optimizer.zero_grad()
             loss.backward()
-            if idx % 2 == 0:
+            if idx % 5 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -123,7 +123,7 @@ def train(net):
         if e % 1 == 0:
             # validate
             smooth_loss = moving_bce_loss/(idx+1)
-            pred_labels = pred(valid_loader, net)
+            pred_labels = pred(valid_loader, net, upsample=False)
             valid_loss = evaluate(valid_loader, net, bce2d)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
@@ -242,8 +242,8 @@ if __name__ == '__main__':
     # net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
     # net.load_params('resnet50')
     # net = nn.DataParallel(net).cuda()
-    net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
-    net.load_params('resnet34')
+    net = RefineNetV5_1024()
+    net.load_vgg16()
     net = nn.DataParallel(net).cuda()
     if 0:
         net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
