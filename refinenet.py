@@ -160,6 +160,16 @@ class RefineNetV6(nn.Module):
         map7 = self.map7(map6)
         return (map7, F.sigmoid(map7)), (map1, map2, map3, map4, map5, map6, map7)
 
+    def load_vgg16(self):
+        model_dict = self.state_dict()
+        pretrain_dict = vgg_zoo.load_url(vgg_urls['vgg16_bn'])
+
+        model_dict.update(
+            {key: pretrain_dict[pretrain_key] for key, pretrain_key in zip(model_dict.keys(), pretrain_dict.keys()) if
+             'classifier' not in pretrain_key})
+
+        self.load_state_dict(model_dict)
+
 
 class RefineNetV5_1024(nn.Module):
     """VGG16-BN on each decoder stage"""

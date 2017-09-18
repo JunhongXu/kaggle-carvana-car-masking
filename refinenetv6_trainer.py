@@ -12,10 +12,9 @@ from scipy.misc import imread
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.optim import SGD
-
 from dataset import transform2, transform3, get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
 from myunet import BCELoss2d, SoftIoULoss
-from refinenet import RefineNetV5_1024
+from refinenet import RefineNetV6
 from util import Logger
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 
@@ -23,21 +22,19 @@ torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
 START_EPOCH = 1
-in_h = 1024
-in_w = 1024
-out_w = 1024
-out_h = 1024
+in_h = 512
+in_w = 512
+out_w = 512
+out_h = 512
 print_it = 30
 interval = 20000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv5_vgg_1024_hq'
-BATCH = 4
-EVAL_BATCH = 10
+model_name = 'refinenetv6_512_hq'
+BATCH = 14
+EVAL_BATCH = 12
 DEBUG = False
 is_training = True
-MULTI_SCALE = False
-scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 
 def lr_scheduler(optimizer, epoch):
@@ -53,14 +50,45 @@ def lr_scheduler(optimizer, epoch):
         param['lr'] = lr
 
 
+def predict(dataloader, net, upsample=False):
+    net.eval()
+    total_size, H, W = len(dataloader.dataset.img_names), dataloader.dataset.out_h, dataloader.dataset.out_w
+    pred_labels = np.empty((total_size, 1280, 1918), dtype=np.uint8) if upsample else np.empty((total_size, H, W))
+    prev = 0
+    for idx, (img, _) in enumerate(dataloader):
+        batch_size = img.size(0)
+        img = Variable(img.cuda(), volatile=True)
+        (scores, logits), _ = net(img)
+        if upsample:
+            logits = F.upsample(logits, (1280, 1918), mode='bilinear')
+        logits = logits.data.cpu().numpy()
+        l = logits > 0.5
+        l = np.squeeze(l)
+        pred_labels[prev: prev+batch_size] = l
+        prev = prev + batch_size
+    return pred_labels
+
+
+def evaluation(dataloader, net, criterion):
+    net.eval()
+    total_size = len(dataloader.dataset.img_names)
+    avg_loss = 0.0
+    for img, label in dataloader:
+        batch_size = img.size(0)
+        img = Variable(img.cuda(), volatile=True)
+        label = label.float()
+        label = Variable(label.cuda(), volatile=True)
+        (out, logits), _ = net(img)
+        loss = criterion(out, label, calculate_weight(label))
+        avg_loss = loss.data[0]*batch_size + avg_loss
+    return avg_loss/total_size
+
+
 def train(net):
-    # net.load_state_dict(torch.load('models/refinenetv5_vgg_512_hq.pth'))
     optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
-    # softdice = SoftDiceLoss()
     softiou = SoftIoULoss()
-    if torch.cuda.is_available():
-        net.cuda()
+
     logger = Logger(str(model_name))
     logger.write('-----------------------Network config-------------------\n')
     logger.write(str(net)+'\n')
@@ -68,6 +96,7 @@ def train(net):
     if START_EPOCH > 0:
         net.load_state_dict(torch.load('models/'+model_name+'.pth'))
         logger.write(('------------Resume training %s from %s---------------\n' %(model_name, START_EPOCH)))
+
     # train
     logger.write('EPOCH || BCE loss || Avg BCE loss || Train Acc || Val loss || Val Acc || Time\n')
     best_val_loss = 0.0
@@ -83,31 +112,32 @@ def train(net):
         num = 0
         total = len(train_loader.dataset.img_names)
         tic = time.time()
+
         for idx, (img, label) in enumerate(train_loader):
             net.train()
             num += img.size(0)
             img = Variable(img.cuda()) if torch.cuda.is_available() else Variable(img)
-            # label = label.long()
             label = Variable(label.cuda()) if torch.cuda.is_available() else Variable(label)
-            out, logits = net(img)
-            # out = out.Long()
-            weight = None if not USE_WEIGHTING else calculate_weight(label)
-            bce_loss = bce2d(out, label, weight=weight)
-            loss = bce_loss + softiou(out, label)
+            (out, logits), maps = net(img)
+            # calculate loss for each map
+            loss = 0
+            for map in maps:
+                N, C, H, W = maps.size()
+                _label = F.upsample(label, (H, W), mode='bilinear')
+                w = calculate_weight(_label)
+                bce_loss = bce2d(map, _label, w)
+                softiou_loss = softiou(out, _label)
+                loss += bce_loss + softiou_loss
+
             moving_bce_loss += bce_loss.data[0]
 
             logits = logits.data.cpu().numpy() > 0.5
             train_acc = dice_coeff(np.squeeze(logits), label.data.cpu().numpy())
-            # optimizer.zero_grad()
-            # do backward pass
-            # loss.backward()
-            # update
-            # optimizer.step()
 
             if idx == 0:
                 optimizer.zero_grad()
             loss.backward()
-            if idx % 5 == 0:
+            if idx % 2 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -123,7 +153,7 @@ def train(net):
             smooth_loss = moving_bce_loss/(idx+1)
             pred_labels = pred(valid_loader, net, upsample=False)
             valid_loss = evaluate(valid_loader, net, bce2d)
-            # print(pred_labels)
+
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
             tac = time.time()
             print('\r %s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f'
@@ -138,41 +168,6 @@ def train(net):
                 best_val_loss = dice
     logger.save()
     logger.file.close()
-
-
-def multi_scale(net, dataloader, s, e):
-    """
-    This function averages the multiple scales of predictions from RefineNetV3_1024 or RefineNetV4_1024
-    This function returns the predictions for each test dataloader slice
-    """
-    net.cuda()
-    net.eval()
-    size = len(dataloader.dataset)
-    score_maps = torch.FloatTensor(len(scales), size, in_h, in_w)
-
-    # predict and store the map for averaging
-    for idx, scale in enumerate(scales):
-        print('\r Scale: %s' % idx, flush=True, end='')
-        H, W = scale
-        upsample = None
-        if H != out_h and W != out_w:
-            upsample = nn.Upsample(size=(out_h, out_w), mode='bilinear')
-
-        dataloader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
-                                          out_w=out_w, mean=None, std=None)
-        prev = 0
-        # predict
-        for (img, _) in dataloader:
-            batch_size = img.size(0)
-            img = Variable(img, volatile=True).cuda()
-            score, _ = net(img)
-            if upsample is not None:
-                score = upsample(score)
-            score_maps[idx, prev:(prev+batch_size)] = score.data.cpu()
-            prev += batch_size
-        del dataloader
-    score_maps = F.sigmoid(torch.mean(score_maps, 0)).data.cpu().numpy()
-    return (score_maps > 0.5).astype(np.uint8)
 
 
 def test(net):
@@ -197,10 +192,8 @@ def test(net):
             e = NUM
         test_loader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
                                           out_w=out_w, mean=None, std=None)
-        if MULTI_SCALE:
-            pred_labels = multi_scale(net, test_loader, s, e)
-        else:
-            pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
+
+        pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
 
         if DEBUG:
             for l, img in zip(pred_labels, test_loader.dataset.img_names):
@@ -236,24 +229,25 @@ def do_submisssion():
     df.to_csv(CARANA_DIR+'/'+model_name+'.csv.gz', index=False, compression='gzip')
 
 
+def debug(net):
+    net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
+    img = cv2.resize(cv2.imread('/media/jxu7/BACK-UP/Data/carvana/test_hq/000aa097d423_04.jpg'), (1024, 1024))
+    img_ = Variable(torch.from_numpy(img.reshape(1, 1024, 1024, 3).transpose(0, 3, 1, 2)/255.), volatile=True).cuda()
+    img_ = img_.float()
+    l, mask = net(img_)
+    mask = (mask.data.cpu().numpy() > 0.5).astype(np.uint8)
+    print(mask.sum())
+    cv2.imshow('frame', mask.reshape(1024, 1024)*100)
+    cv2.imshow('orig', img.reshape(1024, 1024, 3))
+    cv2.waitKey()
+
 if __name__ == '__main__':
-    # net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
-    # net.load_params('resnet50')
-    # net = nn.DataParallel(net).cuda()
-    net = RefineNetV5_1024()
+    net = RefineNetV6()
     net.load_vgg16()
     net = nn.DataParallel(net).cuda()
+
     if 0:
-        net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
-        img = cv2.resize(cv2.imread('/media/jxu7/BACK-UP/Data/carvana/test_hq/000aa097d423_04.jpg'), (1024, 1024))
-        img_ = Variable(torch.from_numpy(img.reshape(1, 1024, 1024, 3).transpose(0, 3, 1, 2)/255.), volatile=True).cuda()
-        img_ = img_.float()
-        l, mask = net(img_)
-        mask = (mask.data.cpu().numpy() > 0.5).astype(np.uint8)
-        print(mask.sum())
-        cv2.imshow('frame', mask.reshape(1024, 1024)*100)
-        cv2.imshow('orig', img.reshape(1024, 1024, 3))
-        cv2.waitKey()
+        debug(net)
     if is_training:
         valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w,
                                                           out_h=out_h, out_w=out_w,

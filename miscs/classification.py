@@ -1,19 +1,21 @@
+import glob
+import random
+import time
+
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from torchvision.models.resnet import resnet34, resnet50, model_zoo, model_urls
-from cls_labels import idx2label, label2idx
 from torch.optim import SGD
+from torchvision.models.resnet import resnet34, model_zoo, model_urls
+
 from dataset import CARANA_DIR, get_cls_train_dataloader, get_cls_valid_dataloader\
-    , get_train_dataloader, get_valid_dataloader, transform3, transform2, transform1
-from refinenet import RefineNetV4_1024, BasicBlock
+    , get_train_dataloader, get_valid_dataloader, transform3, transform2
 from main import SoftIoULoss, BCELoss2d, calculate_weight, lr_scheduler
-import numpy as np
+from miscs.cls_labels import idx2label, label2idx
+from refinenet import RefineNetV4_1024, BasicBlock
 from util import Logger, dice_coeff, pred, evaluate
-import time
-import random
-import glob
-import cv2
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
