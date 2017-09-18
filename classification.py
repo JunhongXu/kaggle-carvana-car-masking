@@ -9,7 +9,7 @@ from dataset import CARANA_DIR, get_cls_train_dataloader, get_cls_valid_dataload
 from refinenet import RefineNetV4_1024, BasicBlock
 from main import SoftIoULoss, BCELoss2d, calculate_weight, lr_scheduler
 import numpy as np
-from util import Logger, dice_coeff, pred
+from util import Logger, dice_coeff, pred, evaluate
 import time
 import random
 import glob
@@ -56,7 +56,7 @@ def train_valid_split(num_valid=10000):
             f.write(name+'\n')
 
 
-def evaluate(net, dataloader, criterion):
+def _evaluate(net, dataloader, criterion):
     net.eval()
     total_size = len(dataloader.dataset)
     pred_labels = np.empty(total_size)
@@ -110,7 +110,7 @@ def pretrain():
         net.load_state_dict(torch.load('models/'+PRE_TRAIN_MODEL_NAME+'.pth'))
 
     if DEBUG:
-        labels, eval_loss, eval_acc = evaluate(net, valid_loader, criterion)
+        labels, eval_loss, eval_acc = _evaluate(net, valid_loader, criterion)
         img_names = valid_loader.dataset.img_names
         for label, img_name in zip(labels, img_names):
             cv2.imshow('pic', cv2.imread(img_name))
@@ -147,7 +147,7 @@ def pretrain():
                       flush=True, end='')
 
         if e % 1 == 0:
-            labels, eval_loss, eval_acc = evaluate(net, valid_loader, criterion)
+            labels, eval_loss, eval_acc = _evaluate(net, valid_loader, criterion)
 
             tac = time.time()
             print('\r %s || %.5f || %.5f || %.4f || %.5f || %.4f || %.2f'
@@ -170,6 +170,7 @@ def load_pretrained_refinenet():
     net = nn.DataParallel(RefineNetV4_1024(BasicBlock, [3, 4, 6, 3]))
     state_dict = net.state_dict()
     state_dict.update({key: state_dict[key] for key in pretrain_dict if 'fc' not in key})
+    net.load_state_dict(state_dict)
     return net
 
 
@@ -245,7 +246,7 @@ def train_seg():
             # validate
             smooth_loss = moving_bce_loss / (idx + 1)
             pred_labels = pred(valid_loader, net)
-            valid_loss = evaluate(net, valid_loader, bce2d)
+            valid_loss = evaluate(valid_loader, net, bce2d)
             # print(pred_labels)
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
             tac = time.time()
@@ -265,5 +266,5 @@ def train_seg():
 
 if __name__ == '__main__':
     # train_valid_split()
-    # pretrain()
-    train_seg()
+    pretrain()
+    # train_seg()
