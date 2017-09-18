@@ -21,7 +21,7 @@ from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calcu
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
-START_EPOCH = 1
+START_EPOCH = 0
 in_h = 512
 in_w = 512
 out_w = 512
@@ -39,9 +39,9 @@ is_training = True
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 20:
-        lr = 0.009
+        lr = 0.05
     elif 10 < epoch <= 30:
-        lr = 0.005
+        lr = 0.001
     elif 30 < epoch <= 50:
         lr = 0.001
     else:
