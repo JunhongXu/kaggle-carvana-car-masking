@@ -26,11 +26,11 @@ Kaggle Competition, hope I can win this one!
 
 ## Models
 
-RefineNet-v1: Pre-trained ResNet-50 with features added to decoder
-RefineNet-v2: Pre-trained ResNet-50 with features stacked to decoder
-Refinenet-v3: Pre-trained ResNet-50 with features stacked to decoder
-RefineNet-v4: Pre-trained ResNet-34 with stacked features. (Trained on 1024->1152->(1280*1792))
-RefineNet-v5: Pre-trained VGG-16 with stacked features
+1. RefineNet-v1: Pre-trained ResNet-50 with features added to decoder
+2. RefineNet-v2: Pre-trained ResNet-50 with features stacked to decoder
+3. Refinenet-v3: Pre-trained ResNet-50 with features stacked to decoder
+4. RefineNet-v4: Pre-trained ResNet-34 with stacked features. (Trained on 1024->1152->(1280*1792))
+5. RefineNet-v5: Pre-trained VGG-16 with stacked features
 
 
 ## Trained nets
