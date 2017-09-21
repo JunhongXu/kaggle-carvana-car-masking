@@ -22,28 +22,28 @@ torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
 START_EPOCH = 0
-in_h = 512
-in_w = 512
-out_w = 512
-out_h = 512
+in_h = 1024
+in_w = 1024
+out_w = 1024
+out_h = 1024
 print_it = 30
 interval = 20000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv6_512_hq'
-BATCH = 14
-EVAL_BATCH = 12
+model_name = 'refinenetv6_1024'
+BATCH = 2
+EVAL_BATCH = 8
 DEBUG = False
 is_training = True
 
 
 def lr_scheduler(optimizer, epoch):
-    if 0 <= epoch <= 20:
-        lr = 0.05
+    if 0 <= epoch <= 10:
+        lr = 0.005
     elif 10 < epoch <= 30:
         lr = 0.001
     elif 30 < epoch <= 50:
-        lr = 0.001
+        lr = 0.0005
     else:
         lr = 0.0001
     for param in optimizer.param_groups:
@@ -85,6 +85,7 @@ def evaluation(dataloader, net, criterion):
 
 
 def train(net):
+    net.load_state_dict(torch.load('models/refinenetv6_512_hq.pth'))
     optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
     softiou = SoftIoULoss()
@@ -122,11 +123,12 @@ def train(net):
             # calculate loss for each map
             loss = 0
             for map in maps:
-                N, C, H, W = maps.size()
-                _label = F.upsample(label, (H, W), mode='bilinear')
+                N, C, H, W = map.size()
+                _label = F.upsample(label.unsqueeze(1), (H, W), mode='bilinear')
+                _label = _label.squeeze()
                 w = calculate_weight(_label)
                 bce_loss = bce2d(map, _label, w)
-                softiou_loss = softiou(out, _label)
+                softiou_loss = softiou(map, _label)
                 loss += bce_loss + softiou_loss
 
             moving_bce_loss += bce_loss.data[0]
@@ -137,7 +139,7 @@ def train(net):
             if idx == 0:
                 optimizer.zero_grad()
             loss.backward()
-            if idx % 2 == 0:
+            if idx % 4 == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -151,8 +153,8 @@ def train(net):
         if e % 1 == 0:
             # validate
             smooth_loss = moving_bce_loss/(idx+1)
-            pred_labels = pred(valid_loader, net, upsample=False)
-            valid_loss = evaluate(valid_loader, net, bce2d)
+            pred_labels = predict(valid_loader, net, upsample=False)
+            valid_loss = evaluation(valid_loader, net, bce2d)
 
             dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
             tac = time.time()

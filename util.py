@@ -128,6 +128,20 @@ def split(num=None):
                     f.write(str(img_names[v_idx]).split('/')[-1][:-4])
                     f.write('\n')
 
+def gta_split():
+    """read train-4788 and add gta image names to this file"""
+    gta_img_names = [name.split('/')[-1][:-4] for name in glob.glob(CARANA_DIR + '/train/gta_train/*.jpg')]
+    shuffle(gta_img_names)
+    with open(CARANA_DIR + '/split/train-4788') as f:
+        content = f.readlines()
+    orig_img_names = [line.strip('\n') for line in content]
+    img_names = orig_img_names + gta_img_names
+
+    with open(CARANA_DIR + '/split/train-4788-gta', 'w') as f:
+        for img_name in img_names:
+            f.write(img_name + '\n')
+            print(img_name)
+    # print(orig_img_names)
 
 
 class Logger(object):
@@ -164,37 +178,38 @@ class Logger(object):
 
 
 if __name__ == '__main__':
-    from scipy.misc import imread
-    import cv2
-    from matplotlib import pyplot as plt
-
-    # split(4788)
-    imgs = sorted(glob.glob(CARANA_DIR+'/ensemble-1/*.png'))
-    imgs_2 = sorted(glob.glob(CARANA_DIR+'/refinenetv4_resnet34_1280*1280_hq/*.png'))
-   #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
-    orig = sorted(glob.glob(CARANA_DIR+'/test_hq/*.jpg'))
-
-    for img, img_2, img_ in zip(imgs, imgs_2, orig):
-        plt.figure(figsize=(30,20))
-        plt.subplot(1, 2, 1)
-        plt.title('ensemble-1')
-        mask = (cv2.resize(imread(img), (1918, 1280)))
-        img_ = (cv2.resize(imread(img_), (1918, 1280)))
-        mask = cv2.resize((mask).astype(np.uint8),  (1918, 1280))
-        mask = np.ma.masked_where(mask==0, mask)
-        plt.gca().axis('off')
-        plt.imshow(img_)
-        plt.imshow(mask, 'jet', alpha=0.6)
-
-        plt.subplot(1, 2, 2)
-        plt.title('1024*1824')
-        mask = (cv2.resize(imread(img_2), (1918, 1280)))
-        mask = cv2.resize((mask).astype(np.uint8),  (1918, 1280))
-        mask = np.ma.masked_where(mask==0, mask)
-        plt.imshow(img_)
-        plt.imshow(mask, 'jet', alpha=0.6)
-        plt.gca().axis('off')
-        plt.show()
+   #  from scipy.misc import imread
+   #  import cv2
+   #  from matplotlib import pyplot as plt
+   #
+   #  # split(4788)
+   #  imgs = sorted(glob.glob(CARANA_DIR+'/ensemble-1/*.png'))
+   #  imgs_2 = sorted(glob.glob(CARANA_DIR+'/refinenetv4_resnet34_1280*1280_hq/*.png'))
+   # #  img_2 = glob.glob(CARANA_DIR+'/unet1024_5000_1/*.png')
+   #  orig = sorted(glob.glob(CARANA_DIR+'/test_hq/*.jpg'))
+   #
+   #  for img, img_2, img_ in zip(imgs, imgs_2, orig):
+   #      plt.figure(figsize=(30,20))
+   #      plt.subplot(1, 2, 1)
+   #      plt.title('ensemble-1')
+   #      mask = (cv2.resize(imread(img), (1918, 1280)))
+   #      img_ = (cv2.resize(imread(img_), (1918, 1280)))
+   #      mask = cv2.resize((mask).astype(np.uint8),  (1918, 1280))
+   #      mask = np.ma.masked_where(mask==0, mask)
+   #      plt.gca().axis('off')
+   #      plt.imshow(img_)
+   #      plt.imshow(mask, 'jet', alpha=0.6)
+   #
+   #      plt.subplot(1, 2, 2)
+   #      plt.title('1024*1824')
+   #      mask = (cv2.resize(imread(img_2), (1918, 1280)))
+   #      mask = cv2.resize((mask).astype(np.uint8),  (1918, 1280))
+   #      mask = np.ma.masked_where(mask==0, mask)
+   #      plt.imshow(img_)
+   #      plt.imshow(mask, 'jet', alpha=0.6)
+   #      plt.gca().axis('off')
+   #      plt.show()
+   gta_split()
    #      orig_ = (cv2.resize(imread(orig_), (960, 640)))
    #      cv2.imshow('f', img*100)
    #      cv2.imshow('2', img_*100)

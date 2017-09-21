@@ -2,7 +2,7 @@ import glob
 import math
 import random
 import time
-
+from scipy.misc import imread
 import cv2
 import numpy as np
 import pandas as pd
@@ -120,9 +120,7 @@ class PesudoLabelCarvanaDataSet(Dataset):
 
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None, hq=True,
-                 test=False, preload=False, mean=None, std=None, start=None, end=None,
-                 load_number=None):
-        """require_cls: if requires class information"""
+                 test=False, preload=False, mean=None, std=None, start=None, end=None, load_gta=False):
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
         self.out_h = out_h
@@ -134,6 +132,8 @@ class CarvanaDataSet(Dataset):
         self.preload = preload
         self.img_names = []
         self.normalize = Normalize(mean=mean, std=std) if mean is not None and std is not None else None
+        self.use_gta = True if 'gta' in split else False
+
         t = time.time()
         print('[!]Loading!' + CARANA_DIR + '/' + split) if split is not None else print('Testing')
 
@@ -158,9 +158,6 @@ class CarvanaDataSet(Dataset):
                         self.labels[i] = l
         else:
             self.img_names = glob.glob(CARANA_DIR+'/test/*.jpg' if not hq else CARANA_DIR+'/test_hq/*.jpg')
-            if load_number is not None:
-                self.img_names = random.sample(self.img_names, load_number)
-            print(len(self.img_names))
             if start is not None and end is not None:
                 self.img_names = self.img_names[start:end]
         print('Number of samples {}'.format(len(self.img_names)))
@@ -192,7 +189,18 @@ class CarvanaDataSet(Dataset):
             else:
                 # img_name = CARANA_DIR+'/train/'.format(self.img_names[index])
                 img = cv2.imread(self.load_dir+'{}.jpg'.format(self.img_names[index]))
-                label = np.array(Image.open(CARANA_DIR+'/train/train_masks/{}_mask.gif'.format(self.img_names[index])))
+                label_name = self.img_names[index]
+                # if 'png' in label_name:
+                try:
+                    label_mask = CARANA_DIR + '/train/train_masks/{}.png'.format(label_name)
+                    label = imread(label_mask, mode='L')
+                    label[label !=0] = 1
+                    # print(label[label != 0])
+                    # plt.imshow(label)
+                    # plt.show()
+                except:
+                    label_mask = CARANA_DIR + '/train/train_masks/{}_mask.gif'.format(label_name)
+                    label = np.array(Image.open(label_mask))
                 label = np.array(label)
             if self.transform is not None:
                 img, label = self.transform((img, label))

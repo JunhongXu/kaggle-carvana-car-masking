@@ -15,14 +15,14 @@ from torch.optim import SGD
 
 from dataset import transform2, transform3, get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
 from myunet import BCELoss2d, SoftIoULoss
-from refinenet import RefineNetV5_1024
+from refinenet import RefineNetV5_1024, RefineNetV3_1024, RefineNetV4_1024, RefineNetV2_1024, RefineNetV1_1024, Bottleneck
 from util import Logger
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
-START_EPOCH = 1
+START_EPOCH = 12
 in_h = 1024
 in_w = 1024
 out_w = 1024
@@ -31,9 +31,9 @@ print_it = 30
 interval = 20000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv5_vgg_1024_hq'
+model_name = 'refinenetv3_resnet50_1024_gta'
 BATCH = 4
-EVAL_BATCH = 10
+EVAL_BATCH = 8
 DEBUG = False
 is_training = True
 MULTI_SCALE = False
@@ -41,12 +41,12 @@ scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 
 def lr_scheduler(optimizer, epoch):
-    if 0 <= epoch <= 20:
-        lr = 0.009
-    elif 10 < epoch <= 30:
-        lr = 0.005
-    elif 30 < epoch <= 50:
+    if 0 <= epoch <= 10:
         lr = 0.001
+    elif 10 < epoch <= 30:
+        lr = 0.0005
+    elif 30 < epoch <= 50:
+        lr = 0.0001
     else:
         lr = 0.0001
     for param in optimizer.param_groups:
@@ -54,8 +54,8 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
-    # net.load_state_dict(torch.load('models/refinenetv5_vgg_512_hq.pth'))
-    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
+    net.load_state_dict(torch.load('models/refinenetv3_resnet50_512_gta.pth'))
+    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0008)  ###0.0005
     bce2d = BCELoss2d()
     # softdice = SoftDiceLoss()
     softiou = SoftIoULoss()
@@ -208,9 +208,6 @@ def test(net):
                 mask = np.ma.masked_where(mask==0, mask)
                 plt.imshow(cv2.resize(cv2.imread(img), (1918, 1280)))
                 plt.imshow(mask, 'jet', alpha=0.6)
-                # cv2.imshow('orig', cv2.resize(cv2.imread(test_loader.dataset.img_names[0]), (1918, 1280)))
-                # cv2.imshow('test', cv2.resize((total_preds[0]).astype(np.uint8),  (1918, 1280))*100)
-                # cv2.waitKey()
                 print(img)
                 plt.show()
         names = test_loader.dataset.img_names
@@ -240,8 +237,10 @@ if __name__ == '__main__':
     # net = RefineNetV2_1024(Bottleneck, [3, 4, 6, 3])
     # net.load_params('resnet50')
     # net = nn.DataParallel(net).cuda()
-    net = RefineNetV5_1024()
-    net.load_vgg16()
+    # net = RefineNetV5_1024()
+    net = RefineNetV3_1024(Bottleneck, [3, 4, 6, 3])
+    # net.load_vgg16()
+    net.load_params('resnet50')
     net = nn.DataParallel(net).cuda()
     if 0:
         net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
@@ -258,8 +257,8 @@ if __name__ == '__main__':
         valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w,
                                                           out_h=out_h, out_w=out_w,
                                                           preload=False, num_works=2, mean=None, std=None), \
-                                         get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-                                                              out_h=out_h, out_w=out_w, mean=None, std=None)
+                                         get_train_dataloader(split='train-4788-gta', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+                                                              out_h=out_h, out_w=out_w, mean=None, std=None, transforms=transform3)
         train(net)
     else:
         test(net)

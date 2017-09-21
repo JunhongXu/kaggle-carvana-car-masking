@@ -126,7 +126,6 @@ class RefineNetV6(nn.Module):
 
         self.map7 = nn.Sequential(
             *make_conv_bn_relu(1, 64),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
             nn.Conv2d(64, 1, 3, stride=1, padding=1)
         )
 
@@ -137,25 +136,16 @@ class RefineNetV6(nn.Module):
         x4 = self.maxpool4(self.layer4_3(self.layer4_2(self.layer4_1(x3))))
         x5 = self.maxpool5(self.layer5_3(self.layer5_2(self.layer5_1(x4))))
         x6 = self.layer6(x5)
-        print('x1', x1.size())
-        print('x2', x2.size())
-        print('x3', x3.size())
-        print('x4', x4.size())
-        print('x5', x5.size())
-        print('x6', x6.size())
 
         middle = self.middle(x6)
-        print('middle', middle.size())
 
         map1 = self.map1(middle)
         gate1 = self.gate1(x6, x5)
         map2 =self.map2(map1, gate1)
 
-        print(gate1.size())
-
         gate2 = self.gate2(gate1, x4)
         map3 = self.map3(map2, gate2)
-        print(x3.size(), gate2.size())
+
         gate3 = self.gate3(gate2, x3)
         map4 = self.map4(map3, gate3)
 
