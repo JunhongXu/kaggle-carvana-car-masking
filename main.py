@@ -22,7 +22,7 @@ from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calcu
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
-START_EPOCH = 12
+START_EPOCH = 27
 in_h = 1024
 in_w = 1024
 out_w = 1024
@@ -81,7 +81,7 @@ def train(net):
             train_loader.dataset.transforms = transform2
 
         num = 0
-        total = len(train_loader.dataset.img_names)
+        total = train_loader.dataset.num if train_loader.dataset.num is not None else len(train_loader.dataset.img_names)
         tic = time.time()
         for idx, (img, label) in enumerate(train_loader):
             net.train()
@@ -258,7 +258,7 @@ if __name__ == '__main__':
                                                           out_h=out_h, out_w=out_w,
                                                           preload=False, num_works=2, mean=None, std=None), \
                                          get_train_dataloader(split='train-4788-gta', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
-                                                              out_h=out_h, out_w=out_w, mean=None, std=None, transforms=transform3)
+                                                              out_h=out_h, out_w=out_w, mean=None, std=None, transforms=transform3, num=None)
         train(net)
     else:
         test(net)

@@ -120,7 +120,7 @@ class PesudoLabelCarvanaDataSet(Dataset):
 
 class CarvanaDataSet(Dataset):
     def __init__(self, split, H=256, W=256, out_h=1024, out_w=1024, transform=None, hq=True,
-                 test=False, preload=False, mean=None, std=None, start=None, end=None, load_gta=False):
+                 test=False, preload=False, mean=None, std=None, start=None, end=None, num=None):
         super(CarvanaDataSet, self).__init__()
         self.H, self.W = H, W
         self.out_h = out_h
@@ -131,6 +131,7 @@ class CarvanaDataSet(Dataset):
         self.test = test
         self.preload = preload
         self.img_names = []
+        self.num = num
         self.normalize = Normalize(mean=mean, std=std) if mean is not None and std is not None else None
         self.use_gta = True if 'gta' in split else False
 
@@ -213,7 +214,7 @@ class CarvanaDataSet(Dataset):
             return img, label
 
     def __len__(self):
-        return len(self.img_names)
+        return self.num if self.num is not None else len(self.img_names)
 
 
 def toTensor(img):
@@ -380,12 +381,12 @@ def get_valid_dataloader(batch_size, split, H=512, W=512, out_h=1280, out_w=1918
     )
 
 
-def get_train_dataloader(split, mean, std, transforms=Compose([RandomCrop(), HorizontalFlip()]),
+def get_train_dataloader(split, mean, std, transforms=Compose([RandomCrop(), HorizontalFlip()]), num=4788,
                          H=512, W=512, out_h=1280, out_w=1918, batch_size=64, num_works=6, preload=False):
     return DataLoader(batch_size=batch_size, shuffle=True, num_workers=num_works,
                       dataset=CarvanaDataSet(split, preload=preload, H=H, W=W, out_w=out_w, out_h=out_h,
                                              test=False, mean=mean, std=std,
-                                             transform=transforms))
+                                             transform=transforms, num=num))
 
 
 def get_pesudo_train_dataloader(in_h, in_w, out_h, out_w, batch_size, num_workers=6):
@@ -455,12 +456,13 @@ if __name__ == '__main__':
     #     num_pesudo += np.sum((idx >= 4788).astype(int))
     #     print(idx)
     # print(num_pesudo/num_sample)
-    loader = get_cls_valid_dataloader()
+    loader =  get_train_dataloader(split='train-4788-gta', H=512, W=512, batch_size=10, num_works=6, num=None,
+                                                              out_h=512, out_w=512, mean=None, std=None, transforms=transform3)
     for imgs, labels, in loader:
         for img, label in zip(imgs, labels):
             img = img.cpu().numpy()
             img = img.transpose(1, 2, 0)
             # mask = np.ma.masked_where(mask == 0, mask)
             plt.imshow(img)
-            print(idx2label[label])
+           # print(idx2label[label])
             plt.show()
