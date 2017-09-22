@@ -27,14 +27,14 @@ in_w = 1024
 out_w = 1024
 out_h = 1024
 print_it = 30
-interval = 20000
+interval = 10
 NUM = 100064
 USE_WEIGHTING = True
 model_name = 'refinenetv6_1024'
 BATCH = 2
 EVAL_BATCH = 8
-DEBUG = False
-is_training = True
+DEBUG = True
+is_training = False
 
 
 def lr_scheduler(optimizer, epoch):
@@ -172,6 +172,7 @@ def train(net):
     logger.file.close()
 
 
+
 def test(net):
     """
     save the predicted mask image to .jpg file
@@ -195,7 +196,7 @@ def test(net):
         test_loader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
                                           out_w=out_w, mean=None, std=None)
 
-        pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
+        pred_labels = predict(test_loader, net, True)
 
         if DEBUG:
             for l, img in zip(pred_labels, test_loader.dataset.img_names):

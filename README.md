@@ -37,12 +37,14 @@ Kaggle Competition, hope I can win this one!
 
 On validation accuracy (?? still need to be trained.)
 
-1. refinenetv3_resnet50_512_gta (0.9970)
-2. refinenetv3_resnet50_1024*1024_hq (0.9976)
-3. refinenetv3_resnet50_1024_gta (??)
-4. refinenetv4_resnet34_1024*1024_hq (0.99767)
-5. refinenetv4_1280*1280_hq (0.9980)
-6. refinenetv4_1280*1920_hq (higher?)
-7. refinenetv4_1280*1920_hq_gta (??)
-8. refinenetv5_vgg_1280*1920 (??)
-9. refinenetv6_1024 (0.9972)
+1. refinenetv4_resnet34_1280*1920_hq_upsample (higher?)
+2. refinenetv4_resnet34_1280*1920_hq (higher?)
+3. refinenetv4_resnet34_1280*1280_hq (0.9980)
+4. refinenetv4_resnet34_1refinenetv4_1024_hq
+5. refinenetv4_1024_hq
+6. refinenetv3_resnet50_1024*1024_hq
+7. refinenetv3_resnet50_1024_gta (0.9973) //
+8. refinenetv5_vgg_1024_hq (0.9971) //
+9. refinenetv6_1024 (0.9972) //
+10. refinenetv3_resnet50_512_gta (0.9970) //
+

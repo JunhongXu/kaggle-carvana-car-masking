@@ -133,7 +133,7 @@ class CarvanaDataSet(Dataset):
         self.img_names = []
         self.num = num
         self.normalize = Normalize(mean=mean, std=std) if mean is not None and std is not None else None
-        self.use_gta = True if 'gta' in split else False
+        self.use_gta = True if split is not None and 'gta' in split else False
 
         t = time.time()
         print('[!]Loading!' + CARANA_DIR + '/' + split) if split is not None else print('Testing')
@@ -401,7 +401,7 @@ def get_pesudo_train_dataloader(in_h, in_w, out_h, out_w, batch_size, num_worker
 def get_test_dataloader(std, mean, H=512, W=512, out_h=1280, out_w=1918, batch_size=64, start=None, end=None,
                         load_number=None):
     return DataLoader(batch_size=batch_size, num_workers=4,
-                      dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std, load_number=load_number,
+                      dataset=CarvanaDataSet(start=start, end=end, split=None, H=H, W=W, std=std,
                                              mean=mean, test=True,
                                             out_h=out_h, out_w=out_w))
 

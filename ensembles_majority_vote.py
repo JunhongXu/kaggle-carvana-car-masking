@@ -8,18 +8,24 @@ from matplotlib import pyplot as plt
 from scipy.misc import imread
 import pandas as pd
 from util import run_length_encode
+import multiprocessing
+
 
 ensembles = [
-                'refinenetv4_resnet34_1280*1920_hq_upsample_preds'
+                'refinenetv4_resnet34_1280*1920_hq_upsample_preds',
                 'refinenetv4_resnet34_1280*1920_hq',
                 'refinenetv4_resnet34_1280*1280_hq',    # 0.9967
                 'refinenetv4_resnet34_1024*1024_hq',    # 0.9966
                 'refinenetv4_1024_hq',                  # 0.9965
-                'refinenetv3_resnet50_1024*1024_hq'     # 0.9965
+                'refinenetv3_resnet50_1024*1024_hq',    # 0.9965
+                #'refinenetv3_resnet50_1024_gta',
+                #'refinenetv5_vgg_1024_hq',
+                #'refinenetv6_1024',
+                'refinenetv3_resnet50_512_gta_upsample_preds'
             ]
-NAME = 'ensemble-2.5'
+NAME = 'ensemble-3'
 H, W = 1280, 1918
-interval = 1000
+interval = 500
 TOTAL_TEST = 100064
 DEBUG = False
 
@@ -36,27 +42,29 @@ def read_imgs(image_names):
 
 
 # ensemble
-def do_ensemble():
+def do_ensemble(start_num=0, num_exp=TOTAL_TEST):
     ensemble_len = len(ensembles)
     ensemble_img_names = []
-    times = ceil(TOTAL_TEST/interval)
+    name = multiprocessing.current_process().name
+    times = ceil(num_exp/interval)
     for e in ensembles:
         names = sorted(glob.glob(CARANA_DIR+'/{}/*.png'.format(e)))
         ensemble_img_names.append(names)
+
     for t in range(0, times):
-        print('\r[!]Process: %.4f' % (t/times), end='', flush=True)
-        start = t * interval
-        end = (t+1) * interval
+        print('[!]Worker %s working on %s:%s -- Process: %.4f' % (name, start_num, num_exp + start_num, t/times))
+        start = t * interval + start_num
+        end = (t+1) * interval + start_num
         if t == (times - 1):
-            end = TOTAL_TEST
+            end = num_exp + start_num
 
         current_names = [e[start:end] for e in ensemble_img_names]
         labels = np.zeros((len(current_names[0]), H, W), dtype=np.uint8)
         for ensemble_idx in range(ensemble_len):
             current_images = current_names[ensemble_idx]
             images = read_imgs(current_images)
-            if ensemble_idx == 0:
-                images = images * 1
+            if ensemble_idx == 1:
+                images = images * 1.5
             labels = labels + images
             del images
         labels = (labels > (ensemble_len // 2)).astype(np.uint8)
@@ -95,5 +103,15 @@ def do_submisssion():
 
 # divide results
 if __name__ == '__main__':
-    do_ensemble()
-    do_submisssion()
+    processes = []
+    num_proc = 2
+    for i in range(num_proc):
+        example_per_proc = TOTAL_TEST // num_proc
+        process = multiprocessing.Process(target=do_ensemble, name=i+1, args=(example_per_proc * i, example_per_proc))
+        process.start()
+        processes.append(process)
+
+    for p in processes:
+        p.join()
+    # do_ensemble()
+    # do_submisssion()

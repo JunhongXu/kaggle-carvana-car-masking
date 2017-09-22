@@ -22,20 +22,20 @@ from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calcu
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
-START_EPOCH = 27
-in_h = 1024
-in_w = 1024
-out_w = 1024
-out_h = 1024
+START_EPOCH = 15
+in_h = 512
+in_w = 512
+out_w = 512
+out_h = 512
 print_it = 30
 interval = 20000
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv3_resnet50_1024_gta'
-BATCH = 4
-EVAL_BATCH = 8
+model_name = 'refinenetv3_resnet50_512_gta'
+BATCH = 2
+EVAL_BATCH = 16
 DEBUG = False
-is_training = True
+is_training = False
 MULTI_SCALE = False
 scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
@@ -44,9 +44,9 @@ def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
         lr = 0.001
     elif 10 < epoch <= 30:
-        lr = 0.0005
+        lr = 0.0009
     elif 30 < epoch <= 50:
-        lr = 0.0001
+        lr = 0.0005
     else:
         lr = 0.0001
     for param in optimizer.param_groups:
@@ -54,8 +54,8 @@ def lr_scheduler(optimizer, epoch):
 
 
 def train(net):
-    net.load_state_dict(torch.load('models/refinenetv3_resnet50_512_gta.pth'))
-    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0008)  ###0.0005
+    net.load_state_dict(torch.load('models/refinenetv5_vgg_1280*1536_hq.pth'))
+    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0001)  ###0.0005
     bce2d = BCELoss2d()
     # softdice = SoftDiceLoss()
     softiou = SoftIoULoss()
@@ -140,39 +140,39 @@ def train(net):
     logger.file.close()
 
 
-def multi_scale(net, dataloader, s, e):
-    """
-    This function averages the multiple scales of predictions from RefineNetV3_1024 or RefineNetV4_1024
-    This function returns the predictions for each test dataloader slice
-    """
-    net.cuda()
-    net.eval()
-    size = len(dataloader.dataset)
-    score_maps = torch.FloatTensor(len(scales), size, in_h, in_w)
-
-    # predict and store the map for averaging
-    for idx, scale in enumerate(scales):
-        print('\r Scale: %s' % idx, flush=True, end='')
-        H, W = scale
-        upsample = None
-        if H != out_h and W != out_w:
-            upsample = nn.Upsample(size=(out_h, out_w), mode='bilinear')
-
-        dataloader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
-                                          out_w=out_w, mean=None, std=None)
-        prev = 0
-        # predict
-        for (img, _) in dataloader:
-            batch_size = img.size(0)
-            img = Variable(img, volatile=True).cuda()
-            score, _ = net(img)
-            if upsample is not None:
-                score = upsample(score)
-            score_maps[idx, prev:(prev+batch_size)] = score.data.cpu()
-            prev += batch_size
-        del dataloader
-    score_maps = F.sigmoid(torch.mean(score_maps, 0)).data.cpu().numpy()
-    return (score_maps > 0.5).astype(np.uint8)
+# def multi_scale(net, dataloader, s, e):
+#     """
+#     This function averages the multiple scales of predictions from RefineNetV3_1024 or RefineNetV4_1024
+#     This function returns the predictions for each test dataloader slice
+#     """
+#     net.cuda()
+#     net.eval()
+#     size = len(dataloader.dataset)
+#     score_maps = torch.FloatTensor(len(scales), size, in_h, in_w)
+#
+#     # predict and store the map for averaging
+#     for idx, scale in enumerate(scales):
+#         print('\r Scale: %s' % idx, flush=True, end='')
+#         H, W = scale
+#         upsample = None
+#         if H != out_h and W != out_w:
+#             upsample = nn.Upsample(size=(out_h, out_w), mode='bilinear')
+#
+#         dataloader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
+#                                           out_w=out_w, mean=None, std=None)
+#         prev = 0
+#         # predict
+#         for (img, _) in dataloader:
+#             batch_size = img.size(0)
+#             img = Variable(img, volatile=True).cuda()
+#             score, _ = net(img)
+#             if upsample is not None:
+#                 score = upsample(score)
+#             score_maps[idx, prev:(prev+batch_size)] = score.data.cpu()
+#             prev += batch_size
+#         del dataloader
+#     score_maps = F.sigmoid(torch.mean(score_maps, 0)).data.cpu().numpy()
+#     return (score_maps > 0.5).astype(np.uint8)
 
 
 def test(net):
@@ -197,10 +197,10 @@ def test(net):
             e = NUM
         test_loader = get_test_dataloader(batch_size=EVAL_BATCH, H=in_h, W=in_w, start=s, end=e, out_h=out_h,
                                           out_w=out_w, mean=None, std=None)
-        if MULTI_SCALE:
-            pred_labels = multi_scale(net, test_loader, s, e)
-        else:
-            pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
+        # if MULTI_SCALE:
+        #     pred_labels = multi_scale(net, test_loader, s, e)
+        # else:
+        pred_labels = pred(test_loader, net, verbose=not DEBUG, upsample=upsampler)
 
         if DEBUG:
             for l, img in zip(pred_labels, test_loader.dataset.img_names):
@@ -240,7 +240,7 @@ if __name__ == '__main__':
     # net = RefineNetV5_1024()
     net = RefineNetV3_1024(Bottleneck, [3, 4, 6, 3])
     # net.load_vgg16()
-    net.load_params('resnet50')
+    # net.load_params('resnet50')
     net = nn.DataParallel(net).cuda()
     if 0:
         net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))
@@ -257,7 +257,7 @@ if __name__ == '__main__':
         valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH, H=in_h, W=in_w,
                                                           out_h=out_h, out_w=out_w,
                                                           preload=False, num_works=2, mean=None, std=None), \
-                                         get_train_dataloader(split='train-4788-gta', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
+                                         get_train_dataloader(split='train-4788', H=in_h, W=in_w, batch_size=BATCH, num_works=6,
                                                               out_h=out_h, out_w=out_w, mean=None, std=None, transforms=transform3, num=None)
         train(net)
     else:
