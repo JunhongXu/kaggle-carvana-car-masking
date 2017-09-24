@@ -15,7 +15,7 @@ from torch.optim import SGD
 
 from dataset import transform2, transform3, get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
 from myunet import BCELoss2d, SoftIoULoss
-from refinenet import RefineNetV5_1024, RefineNetV3_1024, RefineNetV4_1024, RefineNetV2_1024, RefineNetV1_1024, Bottleneck
+from refinenet import RefineNetV5_1024, RefineNetV3_1024, RefineNetV4_1024, RefineNetV2_1024, RefineNetV1_1024, Bottleneck, BasicBlock
 from util import Logger
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
 
@@ -23,17 +23,17 @@ torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
 START_EPOCH = 15
-in_h = 512
-in_w = 512
-out_w = 512
-out_h = 512
+in_h = 1280
+in_w = 1440
+out_w = 1440
+out_h = 1280
 print_it = 30
-interval = 20000
+interval = 500
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv3_resnet50_512_gta'
+model_name = 'refinenetv4_resnet34_1280*1920_hq'
 BATCH = 2
-EVAL_BATCH = 16
+EVAL_BATCH = 8
 DEBUG = False
 is_training = False
 MULTI_SCALE = False
@@ -213,12 +213,12 @@ def test(net):
         names = test_loader.dataset.img_names
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
-        save_mask(mask_imgs=pred_labels, model_name=model_name+'_upsample_preds', names=names)
+        save_mask(mask_imgs=pred_labels, model_name=model_name+'_upsample_preds_1280*1440', names=names)
         del pred_labels
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'_upsample_preds'+'/*.png')
+    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'_upsample_preds_1280*1440'+'/*.png')
     names = []
     rle = []
     for index, test_name in enumerate(mask_names):
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     # net.load_params('resnet50')
     # net = nn.DataParallel(net).cuda()
     # net = RefineNetV5_1024()
-    net = RefineNetV3_1024(Bottleneck, [3, 4, 6, 3])
+    net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
     # net.load_vgg16()
     # net.load_params('resnet50')
     net = nn.DataParallel(net).cuda()

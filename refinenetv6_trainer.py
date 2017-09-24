@@ -27,13 +27,13 @@ in_w = 1024
 out_w = 1024
 out_h = 1024
 print_it = 30
-interval = 10
+interval = 10000
 NUM = 100064
 USE_WEIGHTING = True
 model_name = 'refinenetv6_1024'
 BATCH = 2
-EVAL_BATCH = 8
-DEBUG = True
+EVAL_BATCH = 12
+DEBUG = False
 is_training = False
 
 

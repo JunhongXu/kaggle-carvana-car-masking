@@ -14,18 +14,21 @@ import multiprocessing
 ensembles = [
                 'refinenetv4_resnet34_1280*1920_hq_upsample_preds',
                 'refinenetv4_resnet34_1280*1920_hq',
-                'refinenetv4_resnet34_1280*1280_hq',    # 0.9967
-                'refinenetv4_resnet34_1024*1024_hq',    # 0.9966
+                'refinenetv4_resnet34_1280*1280_hq_upsample_preds',    # 0.9967
+                'refinenetv4_resnet34_1024*1024_hq_upsample_preds',    # 0.9966
                 'refinenetv4_1024_hq',                  # 0.9965
+                'refinenetv3_resnet50_1024_gta_upsample_preds',
                 'refinenetv3_resnet50_1024*1024_hq',    # 0.9965
-                #'refinenetv3_resnet50_1024_gta',
-                #'refinenetv5_vgg_1024_hq',
-                #'refinenetv6_1024',
+                'refinenetv5_vgg_1024_hq_upsample_preds',
+                'refinenetv6_1024_upsample_preds',
                 'refinenetv3_resnet50_512_gta_upsample_preds'
+                # 'ensemble-1',
+                # 'ensemble-2',
+                # 'ensemble-3'
             ]
-NAME = 'ensemble-3'
+NAME = 'ensemble-5.1'
 H, W = 1280, 1918
-interval = 500
+interval = 2000
 TOTAL_TEST = 100064
 DEBUG = False
 
@@ -49,6 +52,7 @@ def do_ensemble(start_num=0, num_exp=TOTAL_TEST):
     times = ceil(num_exp/interval)
     for e in ensembles:
         names = sorted(glob.glob(CARANA_DIR+'/{}/*.png'.format(e)))
+        print(e, len(names))
         ensemble_img_names.append(names)
 
     for t in range(0, times):
@@ -64,7 +68,7 @@ def do_ensemble(start_num=0, num_exp=TOTAL_TEST):
             current_images = current_names[ensemble_idx]
             images = read_imgs(current_images)
             if ensemble_idx == 1:
-                images = images * 1.5
+                images = images * 2
             labels = labels + images
             del images
         labels = (labels > (ensemble_len // 2)).astype(np.uint8)
@@ -103,15 +107,15 @@ def do_submisssion():
 
 # divide results
 if __name__ == '__main__':
-    processes = []
-    num_proc = 2
-    for i in range(num_proc):
-        example_per_proc = TOTAL_TEST // num_proc
-        process = multiprocessing.Process(target=do_ensemble, name=i+1, args=(example_per_proc * i, example_per_proc))
-        process.start()
-        processes.append(process)
+   # processes = []
+    #num_proc = 1
+    #for i in range(num_proc):
+     #   example_per_proc = TOTAL_TEST // num_proc
+    #    process = multiprocessing.Process(target=do_ensemble, name=i+1, args=(example_per_proc * i, example_per_proc))
+    #    process.start()
+    #    processes.append(process)
 
-    for p in processes:
-        p.join()
-    # do_ensemble()
-    # do_submisssion()
+    #for p in processes:
+        #p.join()
+    do_ensemble()
+    do_submisssion()
