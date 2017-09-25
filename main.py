@@ -24,8 +24,8 @@ torch.cuda.manual_seed(0)
 EPOCH = 40
 START_EPOCH = 15
 in_h = 1280
-in_w = 1440
-out_w = 1440
+in_w = 1536
+out_w = 1536
 out_h = 1280
 print_it = 30
 interval = 500
@@ -33,7 +33,7 @@ NUM = 100064
 USE_WEIGHTING = True
 model_name = 'refinenetv4_resnet34_1280*1920_hq'
 BATCH = 2
-EVAL_BATCH = 8
+EVAL_BATCH = 10
 DEBUG = False
 is_training = False
 MULTI_SCALE = False
@@ -213,12 +213,12 @@ def test(net):
         names = test_loader.dataset.img_names
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
-        save_mask(mask_imgs=pred_labels, model_name=model_name+'_upsample_preds_1280*1440', names=names)
+        save_mask(mask_imgs=pred_labels, model_name=model_name+'_upsample_preds_1280*1536', names=names)
         del pred_labels
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'_upsample_preds_1280*1440'+'/*.png')
+    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'_upsample_preds_1280*1536'+'/*.png')
     names = []
     rle = []
     for index, test_name in enumerate(mask_names):
