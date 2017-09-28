@@ -40,11 +40,21 @@ class BCELoss2d(nn.Module):
         loss = loss.sum()/w.sum()
         return loss
 
-        #
-        # logits_flat  = logits.view (-1)
-        # targets_flat = targets.view(-1)
-        # return StableBCELoss()(logits_flat,targets_flat)
 
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=0.5):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+
+    def forward(self, logits, targets):
+        batch_size = logits.size(0)
+        y = targets.view(-1)
+        p = logits.view(-1)
+        p = p.clamp(1e-7, 1 - 1e-7)
+        loss = -1 * y * torch.log(p)
+        loss = loss * (1 - p) ** self.gamma
+        # loss = -(y * (1 - p)**self.gamma*torch.log(p) + (1 - y) * p**self.gamma * torch.log(1 - p))
+        return loss.mean()
 
 class SoftDiceLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):

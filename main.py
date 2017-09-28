@@ -14,7 +14,7 @@ from torch.nn import functional as F
 from torch.optim import SGD
 
 from dataset import transform2, transform3, get_valid_dataloader, get_train_dataloader, get_test_dataloader, CARANA_DIR
-from myunet import BCELoss2d, SoftIoULoss
+from myunet import BCELoss2d, SoftIoULoss, FocalLoss
 from refinenet import RefineNetV5_1024, RefineNetV3_1024, RefineNetV4_1024, RefineNetV2_1024, RefineNetV1_1024, Bottleneck, BasicBlock
 from util import Logger
 from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calculate_weight
@@ -22,16 +22,16 @@ from util import pred, evaluate, dice_coeff, run_length_encode, save_mask, calcu
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
 EPOCH = 40
-START_EPOCH = 15
+START_EPOCH = 29
 in_h = 1280
-in_w = 1536
-out_w = 1536
+in_w = 1920
+out_w = 1920
 out_h = 1280
 print_it = 30
 interval = 500
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv4_resnet34_1280*1920_hq'
+model_name = 'refinenetv4_resnet34_1280*1920_focal_loss_hq'
 BATCH = 2
 EVAL_BATCH = 10
 DEBUG = False
@@ -42,22 +42,22 @@ scales = [(1440, 1440), (1152, 1152), (1024, 1024)]
 
 def lr_scheduler(optimizer, epoch):
     if 0 <= epoch <= 10:
+        lr = 0.01
+    elif 10 < epoch <= 25:
+        lr = 0.005
+    elif 25 < epoch <= 50:
         lr = 0.001
-    elif 10 < epoch <= 30:
-        lr = 0.0009
-    elif 30 < epoch <= 50:
-        lr = 0.0005
     else:
-        lr = 0.0001
+        lr = 0.0005
     for param in optimizer.param_groups:
         param['lr'] = lr
 
 
 def train(net):
-    net.load_state_dict(torch.load('models/refinenetv5_vgg_1280*1536_hq.pth'))
-    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0001)  ###0.0005
+    # net.load_state_dict(torch.load('models/refinenetv5_vgg_1280*1536_hq.pth'))
+    optimizer = SGD([param for param in net.parameters() if param.requires_grad], lr=0.001, momentum=0.9, weight_decay=0.0005)  ###0.0005
     bce2d = BCELoss2d()
-    # softdice = SoftDiceLoss()
+    focalloss = FocalLoss()
     softiou = SoftIoULoss()
     if torch.cuda.is_available():
         net.cuda()
@@ -93,7 +93,8 @@ def train(net):
             # out = out.Long()
             weight = None if not USE_WEIGHTING else calculate_weight(label)
             bce_loss = bce2d(out, label, weight=weight)
-            loss = bce_loss + softiou(out, label)
+            focal = focalloss(logits, label)
+            loss = bce_loss + softiou(out, label) + focal
             moving_bce_loss += bce_loss.data[0]
 
             logits = logits.data.cpu().numpy() > 0.5
@@ -213,12 +214,12 @@ def test(net):
         names = test_loader.dataset.img_names
         names = [name.split('/')[-1][:-4] for name in names]
         # save mask
-        save_mask(mask_imgs=pred_labels, model_name=model_name+'_upsample_preds_1280*1536', names=names)
+        save_mask(mask_imgs=pred_labels, model_name=model_name+'_upsample_preds', names=names)
         del pred_labels
 
 
 def do_submisssion():
-    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'_upsample_preds_1280*1536'+'/*.png')
+    mask_names = glob.glob(CARANA_DIR+'/'+model_name+'_upsample_preds'+'/*.png')
     names = []
     rle = []
     for index, test_name in enumerate(mask_names):
@@ -240,7 +241,7 @@ if __name__ == '__main__':
     # net = RefineNetV5_1024()
     net = RefineNetV4_1024(BasicBlock, [3, 4, 6, 3])
     # net.load_vgg16()
-    # net.load_params('resnet50')
+    net.load_params('resnet34')
     net = nn.DataParallel(net).cuda()
     if 0:
         net.load_state_dict(torch.load('models/{}.pth'.format(model_name)))

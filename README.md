@@ -1,5 +1,4 @@
 # kaggle-carvana-car-masking
-Kaggle Competition, hope I can win this one!
 
 
 
@@ -21,7 +20,11 @@ Kaggle Competition, hope I can win this one!
             ]
   
 9.17: Pesudo labeling not performing so well.
+
 9.18: Pre-trained classification not performing well.
+
+9.26: Score on private LB: 0.9969/ Ranking: 29
+
 
 
 ## Models
@@ -30,21 +33,29 @@ Kaggle Competition, hope I can win this one!
 2. RefineNet-v2: Pre-trained ResNet-50 with features stacked to decoder
 3. Refinenet-v3: Pre-trained ResNet-50 with features stacked to decoder
 4. RefineNet-v4: Pre-trained ResNet-34 with stacked features. (Trained on 1024->1152->(1280*1792))
-5. RefineNet-v5: Pre-trained VGG-16 with stacked features
+5. RefineNet-v5: Pre-trained VGG-16 with stacked features.
+6. RefineNet-v6: Pre-trained VGG-16 with auxiliary loss.
 
 
-## Trained nets
+## Final ensembles
 
-On validation accuracy (?? still need to be trained.)
+1. refinenetv4_resnet34_1280*1920
+2. refinenetv4_resnet34_1280*1536
+3. refinenetv4_resnet34_1280*1280
+4. refinenetv2_resnet50_1024*1024
+5. refinenetv3_resnet50_1024*1024
+6. refinenetv5_vgg_1024
+7. refinenetv6_1024
+8. refinenetv1_1024
 
-1. refinenetv4_resnet34_1280*1920_hq_upsample (higher?)
-2. refinenetv4_resnet34_1280*1920_hq (higher?)
-3. refinenetv4_resnet34_1280*1280_hq (0.9980)
-4. refinenetv4_resnet34_1refinenetv4_1024_hq
-5. refinenetv4_1024_hq
-6. refinenetv3_resnet50_1024*1024_hq
-7. refinenetv3_resnet50_1024_gta (0.9973) //
-8. refinenetv5_vgg_1024_hq (0.9971) //
-9. refinenetv6_1024 (0.9972) //
-10. refinenetv3_resnet50_512_gta (0.9970) //
+## Lessons
+
+1. Cross validation (good train/val splits) gives better results.
+2. Network structure matters. Seems stacking the features instead of adding them gives slightly better results.
+3. Using pre-trained network helps convergence.
+4. Curriculum learning makes learning speed faster (train from low res to high res.).
+
+Did not use CV, all the networks were trained using same hyper-parameters and train/val split. This should be something prevents me from getting into top 20.
+
+
 

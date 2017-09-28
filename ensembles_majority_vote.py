@@ -13,21 +13,16 @@ import multiprocessing
 
 ensembles = [
                 'refinenetv4_resnet34_1280*1920_hq_upsample_preds',
-                'refinenetv4_resnet34_1280*1920_hq',
                 'refinenetv4_resnet34_1280*1920_hq_upsample_preds_1280*1536',
                 'refinenetv4_resnet34_1280*1280_hq_upsample_preds',    # 0.9967
                 'refinenetv4_resnet34_1024*1024_hq_upsample_preds',    # 0.9966
                 'refinenetv4_1024_hq',                  # 0.9965
-                'refinenetv3_resnet50_1024_gta_upsample_preds',
                 'refinenetv3_resnet50_1024*1024_hq',    # 0.9965
                 'refinenetv5_vgg_1024_hq_upsample_preds',
                 'refinenetv6_1024_upsample_preds',
-                #'refinenetv3_resnet50_512_gta_upsample_preds'
-                # 'ensemble-1',
-                # 'ensemble-2',
-                # 'ensemble-3'
+
             ]
-NAME = 'ensemble-5.3'
+NAME = 'ensemble-5'
 H, W = 1280, 1918
 interval = 2000
 TOTAL_TEST = 100064
@@ -69,7 +64,7 @@ def do_ensemble(start_num=0, num_exp=TOTAL_TEST):
             current_images = current_names[ensemble_idx]
             images = read_imgs(current_images)
             if ensemble_idx == 1:
-                images = images
+                images = images * 2
             labels = labels + images
             del images
         labels = (labels > (ensemble_len // 2)).astype(np.uint8)
@@ -118,5 +113,5 @@ if __name__ == '__main__':
 
     #for p in processes:
         #p.join()
-    do_ensemble()
+    # do_ensemble()
     do_submisssion()
