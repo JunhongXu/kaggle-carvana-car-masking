@@ -56,6 +56,7 @@
 4. Curriculum learning makes learning speed faster (train from low res to high res.).
 
 Did not use CV, all the networks were trained using same hyper-parameters and train/val split. This should be something prevents me from getting into top 20.
+In addition, synthetic data did increase the accuracy, but instead making larger models overfitting.
 
 
 
