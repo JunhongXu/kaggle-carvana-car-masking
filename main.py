@@ -34,8 +34,8 @@ interval = 500
 NUM = 100064
 USE_WEIGHTING = True
 model_name = 'refinenetv4_resnet34_1280*1920_focal_loss_hq'
-BATCH = 2
-EVAL_BATCH = 10
+BATCH = 64
+EVAL_BATCH = 64
 DEBUG = False
 is_training = True
 MULTI_SCALE = False
@@ -137,18 +137,18 @@ def train():
                 train_acc = dice_coeff(np.squeeze(logits), label.data.cpu().numpy())
                 writer.add_scalar('%s/train/loss' % name, loss.data[0], global_step=e * batch_per_epoch + idx)
                 writer.add_scalar('%s/train/dice' % name, train_acc, global_step=e * batch_per_epoch + idx)
-                # optimizer.zero_grad()
+                optimizer.zero_grad()
                 # do backward pass
-                # loss.backward()
-                # update
-                # optimizer.step()
-
-                if idx == 0:
-                    optimizer.zero_grad()
                 loss.backward()
-                if idx % 5 == 0:
-                    optimizer.step()
-                    optimizer.zero_grad()
+                # update
+                optimizer.step()
+                #
+                # if idx == 0:
+                #     optimizer.zero_grad()
+                # loss.backward()
+                # if idx % 5 == 0:
+                #     optimizer.step()
+                #     optimizer.zero_grad()
 
                 if idx % print_it == 0:
                     smooth_loss = moving_bce_loss/(idx+1)
