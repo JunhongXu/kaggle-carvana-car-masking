@@ -17,7 +17,7 @@ from miscs.cls_labels import label2idx, idx2label
 
 random.seed(0)
 
-CARANA_DIR = '/media/jxu7/BACK-UP/Data/carvana'
+CARANA_DIR = '/share/data/jxu7/carvana'
 mean = [
     [0.68581734522164306, 0.69262389716232575, 0.69997227996210665],
     [0.68183082412592577, 0.68885076944875112, 0.6958291753151572],
