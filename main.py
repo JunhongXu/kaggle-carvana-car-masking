@@ -33,9 +33,8 @@ print_it = 30
 interval = 500
 NUM = 100064
 USE_WEIGHTING = True
-model_name = 'refinenetv4_resnet34_1280*1920_focal_loss_hq'
-BATCH = 32
-EVAL_BATCH = 32
+BATCH = 16
+EVAL_BATCH = 16
 DEBUG = False
 is_training = True
 MULTI_SCALE = False
@@ -78,10 +77,10 @@ def train():
         valid_loader, train_loader = get_valid_dataloader(split='valid-300', batch_size=EVAL_BATCH,
                                                           H=scale[0], W=scale[1],
                                                           out_h=scale[0], out_w=scale[1],
-                                                          preload=False, num_works=2,
+                                                          preload=False, num_works=0,
                                                           mean=None, std=None), \
                                          get_train_dataloader(split='train-4788', H=scale[0], W=scale[1],
-                                                              batch_size=BATCH, num_works=6,
+                                                              batch_size=BATCH, num_works=0,
                                                               out_h=scale[0], out_w=scale[1],
                                                               mean=None, std=None,
                                                               transforms=transform3,
@@ -160,7 +159,7 @@ def train():
             if e % 1 == 0:
                 # validate
                 smooth_loss = moving_bce_loss/(idx+1)
-                pred_labels = pred(valid_loader, net, upsample=False)
+                pred_labels = pred(valid_loader, net, verbose=True, upsample=False)
                 valid_loss = evaluate(valid_loader, net, bce2d)
                 # print(pred_labels)
                 dice = dice_coeff(preds=pred_labels, targets=valid_loader.dataset.labels)
@@ -175,7 +174,7 @@ def train():
                 if best_val_loss < dice:
                     torch.save(net.state_dict(), 'models/'+name+'.pth')
                     best_val_loss = dice
-                writer.add_scalar('%s/valid/loss' % name, valid_loss.data[0], e)
+                writer.add_scalar('%s/valid/loss' % name, valid_loss, e)
                 writer.add_scalar('%s/valid/dice' % name, dice, e)
         logger.save()
         logger.file.close()
